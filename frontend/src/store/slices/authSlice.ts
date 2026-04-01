@@ -1,0 +1,117 @@
+import { createSlice, createAsyncThunk, PayloadAction } from '@reduxjs/toolkit';
+import { api } from '../../api';
+import type { User, LoginRequest, RegisterRequest } from '../../types';
+
+interface AuthState {
+  user: User | null;
+  token: string | null;
+  isLoading: boolean;
+  error: string | null;
+  isInitialized: boolean; 
+}
+
+const initialState: AuthState = {
+  user: null,
+  token: localStorage.getItem('accessToken'),
+  isLoading: false,
+  error: null,
+  isInitialized: false,
+};
+
+export const initAuth = createAsyncThunk('auth/init', async () => {
+  const user = await api.auth.getMe();
+  return user;
+});
+
+export const login = createAsyncThunk(
+  'auth/login',
+  async (data: LoginRequest, { rejectWithValue }) => {
+    try {
+      const res = await api.auth.login(data);
+      localStorage.setItem('accessToken', res.tokens.accessToken);
+      return res;
+    } catch (e: unknown) {
+      const err = e as Error;
+      return rejectWithValue(err.message);
+    }
+  }
+);
+
+export const register = createAsyncThunk(
+  'auth/register',
+  async (data: RegisterRequest, { rejectWithValue }) => {
+    try {
+      const res = await api.auth.register(data);
+      localStorage.setItem('accessToken', res.tokens.accessToken);
+      return res;
+    } catch (e: unknown) {
+      const err = e as Error;
+      return rejectWithValue(err.message);
+    }
+  }
+);
+
+const authSlice = createSlice({
+  name: 'auth',
+  initialState,
+  reducers: {
+    logout(state) {
+      state.user = null;
+      state.token = null;
+      state.error = null;
+      localStorage.removeItem('accessToken');
+    },
+    clearError(state) {
+      state.error = null;
+    },
+  },
+  extraReducers: (builder) => {
+    
+    builder
+      .addCase(initAuth.fulfilled, (state, action) => {
+        state.user = action.payload;
+        state.isInitialized = true;
+      })
+      .addCase(initAuth.rejected, (state) => {
+        state.user = null;
+        state.token = null;
+        state.isInitialized = true;
+        localStorage.removeItem('accessToken');
+      });
+
+    
+    builder
+      .addCase(login.pending, (state) => {
+        state.isLoading = true;
+        state.error = null;
+      })
+      .addCase(login.fulfilled, (state, action) => {
+        state.isLoading = false;
+        state.user = action.payload.user;
+        state.token = action.payload.tokens.accessToken;
+      })
+      .addCase(login.rejected, (state, action) => {
+        state.isLoading = false;
+        state.error = action.payload as string;
+      });
+
+    
+    builder
+      .addCase(register.pending, (state) => {
+        state.isLoading = true;
+        state.error = null;
+      })
+      .addCase(register.fulfilled, (state, action) => {
+        state.isLoading = false;
+        state.user = action.payload.user;
+        state.token = action.payload.tokens.accessToken;
+      })
+      .addCase(register.rejected, (state, action) => {
+        state.isLoading = false;
+        state.error = action.payload as string;
+      });
+  },
+});
+
+export const { logout, clearError } = authSlice.actions;
+export default authSlice.reducer;
