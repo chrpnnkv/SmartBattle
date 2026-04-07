@@ -1,0 +1,430 @@
+basePath: /
+definitions:
+  github_com_chrpnnkv_SmartBattle_internal_models.GameSession:
+    properties:
+      finished_at:
+        type: string
+      host_id:
+        type: string
+      id:
+        type: string
+      quiz_id:
+        type: string
+      report_snapshot:
+        items:
+          type: integer
+        type: array
+      started_at:
+        type: string
+    type: object
+  github_com_chrpnnkv_SmartBattle_internal_models.Option:
+    properties:
+      id:
+        type: string
+      is_correct:
+        type: boolean
+      text:
+        type: string
+    type: object
+  github_com_chrpnnkv_SmartBattle_internal_models.Question:
+    properties:
+      correct_text_answers:
+        items:
+          type: integer
+        type: array
+      id:
+        type: string
+      options:
+        items:
+          $ref: '#/definitions/github_com_chrpnnkv_SmartBattle_internal_models.Option'
+        type: array
+      score:
+        type: integer
+      text:
+        type: string
+      timer_sec:
+        type: integer
+      type:
+        type: string
+    type: object
+  github_com_chrpnnkv_SmartBattle_internal_models.Quiz:
+    properties:
+      created_at:
+        type: string
+      description:
+        type: string
+      id:
+        type: string
+      questions:
+        items:
+          $ref: '#/definitions/github_com_chrpnnkv_SmartBattle_internal_models.Question'
+        type: array
+      settings:
+        items:
+          type: integer
+        type: array
+      teacher_id:
+        type: string
+      title:
+        type: string
+    type: object
+  internal_transport_http_handlers.ChangePasswordReq:
+    properties:
+      new_password:
+        example: newsecret123
+        minLength: 6
+        type: string
+      old_password:
+        example: secret123
+        type: string
+    required:
+    - new_password
+    - old_password
+    type: object
+  internal_transport_http_handlers.ForgotPasswordReq:
+    properties:
+      email:
+        example: teacher@hse.ru
+        type: string
+    required:
+    - email
+    type: object
+  internal_transport_http_handlers.LoginReq:
+    properties:
+      email:
+        example: teacher@hse.ru
+        type: string
+      password:
+        example: secret123
+        type: string
+    required:
+    - email
+    - password
+    type: object
+  internal_transport_http_handlers.RegisterReq:
+    properties:
+      email:
+        example: teacher@hse.ru
+        type: string
+      password:
+        example: secret123
+        minLength: 6
+        type: string
+    required:
+    - email
+    - password
+    type: object
+  internal_transport_http_handlers.ResetPasswordReq:
+    properties:
+      new_password:
+        example: newsecret123
+        minLength: 6
+        type: string
+      token:
+        example: uuid-token-from-log
+        type: string
+    required:
+    - new_password
+    - token
+    type: object
+host: localhost:8080
+info:
+  contact: {}
+  description: Backend Core для платформы академических квизов
+  title: Smart Battle API
+  version: "1.0"
+paths:
+  /api/me:
+    get:
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: OK
+          schema:
+            additionalProperties: true
+            type: object
+      security:
+      - BearerAuth: []
+      summary: Профиль пользователя
+      tags:
+      - Auth
+  /api/quizzes:
+    get:
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: OK
+          schema:
+            items:
+              $ref: '#/definitions/github_com_chrpnnkv_SmartBattle_internal_models.Quiz'
+            type: array
+      security:
+      - BearerAuth: []
+      summary: Список квизов преподавателя
+      tags:
+      - Quizzes
+    post:
+      consumes:
+      - application/json
+      parameters:
+      - description: Структура квиза
+        in: body
+        name: request
+        required: true
+        schema:
+          $ref: '#/definitions/github_com_chrpnnkv_SmartBattle_internal_models.Quiz'
+      produces:
+      - application/json
+      responses:
+        "201":
+          description: Created
+          schema:
+            $ref: '#/definitions/github_com_chrpnnkv_SmartBattle_internal_models.Quiz'
+      security:
+      - BearerAuth: []
+      summary: Создание Квиза
+      tags:
+      - Quizzes
+  /api/quizzes/{id}:
+    delete:
+      parameters:
+      - description: ID Квиза
+        in: path
+        name: id
+        required: true
+        type: string
+      responses:
+        "204":
+          description: No Content
+      security:
+      - BearerAuth: []
+      summary: Удалить квиз
+      tags:
+      - Quizzes
+    get:
+      parameters:
+      - description: ID Квиза
+        in: path
+        name: id
+        required: true
+        type: string
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: OK
+          schema:
+            $ref: '#/definitions/github_com_chrpnnkv_SmartBattle_internal_models.Quiz'
+      security:
+      - BearerAuth: []
+      summary: Получить квиз по ID
+      tags:
+      - Quizzes
+    put:
+      consumes:
+      - application/json
+      parameters:
+      - description: ID Квиза
+        in: path
+        name: id
+        required: true
+        type: string
+      - description: Новая структура квиза
+        in: body
+        name: request
+        required: true
+        schema:
+          $ref: '#/definitions/github_com_chrpnnkv_SmartBattle_internal_models.Quiz'
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: OK
+          schema:
+            $ref: '#/definitions/github_com_chrpnnkv_SmartBattle_internal_models.Quiz'
+      security:
+      - BearerAuth: []
+      summary: Обновление Квиза
+      tags:
+      - Quizzes
+  /api/reports:
+    get:
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: OK
+          schema:
+            items:
+              $ref: '#/definitions/github_com_chrpnnkv_SmartBattle_internal_models.GameSession'
+            type: array
+      security:
+      - BearerAuth: []
+      summary: История игр преподавателя
+      tags:
+      - Analytics
+  /api/reports/{id}/export:
+    get:
+      parameters:
+      - description: ID Сессии
+        in: path
+        name: id
+        required: true
+        type: string
+      produces:
+      - text/csv
+      responses:
+        "200":
+          description: report.csv
+          schema:
+            type: file
+      security:
+      - BearerAuth: []
+      summary: Скачать CSV отчет
+      tags:
+      - Analytics
+  /auth/change-password:
+    post:
+      consumes:
+      - application/json
+      parameters:
+      - description: Данные для смены пароля
+        in: body
+        name: request
+        required: true
+        schema:
+          $ref: '#/definitions/internal_transport_http_handlers.ChangePasswordReq'
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: OK
+          schema:
+            additionalProperties: true
+            type: object
+      security:
+      - BearerAuth: []
+      summary: Смена пароля
+      tags:
+      - Auth
+  /auth/forgot-password:
+    post:
+      consumes:
+      - application/json
+      parameters:
+      - description: Email пользователя
+        in: body
+        name: request
+        required: true
+        schema:
+          $ref: '#/definitions/internal_transport_http_handlers.ForgotPasswordReq'
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: OK
+          schema:
+            additionalProperties: true
+            type: object
+      summary: Запрос на сброс пароля
+      tags:
+      - Auth
+  /auth/login:
+    post:
+      consumes:
+      - application/json
+      parameters:
+      - description: Учетные данные
+        in: body
+        name: request
+        required: true
+        schema:
+          $ref: '#/definitions/internal_transport_http_handlers.LoginReq'
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: OK
+          schema:
+            additionalProperties: true
+            type: object
+      summary: Вход в систему
+      tags:
+      - Auth
+  /auth/register:
+    post:
+      consumes:
+      - application/json
+      parameters:
+      - description: Данные регистрации
+        in: body
+        name: request
+        required: true
+        schema:
+          $ref: '#/definitions/internal_transport_http_handlers.RegisterReq'
+      produces:
+      - application/json
+      responses:
+        "201":
+          description: Created
+          schema:
+            additionalProperties: true
+            type: object
+      summary: Регистрация нового пользователя
+      tags:
+      - Auth
+  /auth/reset-password:
+    post:
+      consumes:
+      - application/json
+      parameters:
+      - description: Токен и новый пароль
+        in: body
+        name: request
+        required: true
+        schema:
+          $ref: '#/definitions/internal_transport_http_handlers.ResetPasswordReq'
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: OK
+          schema:
+            additionalProperties: true
+            type: object
+      summary: Установка нового пароля по токену
+      tags:
+      - Auth
+  /internal/reports:
+    post:
+      consumes:
+      - application/json
+      parameters:
+      - description: Снапшот сессии
+        in: body
+        name: request
+        required: true
+        schema:
+          $ref: '#/definitions/github_com_chrpnnkv_SmartBattle_internal_models.GameSession'
+      produces:
+      - application/json
+      responses:
+        "201":
+          description: Created
+      security:
+      - InternalSecretAuth: []
+      summary: 'INTERNAL: Сохранить результаты игры'
+      tags:
+      - Internal
+securityDefinitions:
+  BearerAuth:
+    in: header
+    name: Authorization
+    type: apiKey
+  InternalSecretAuth:
+    in: header
+    name: X-Internal-Secret
+    type: apiKey
+swagger: "2.0"
