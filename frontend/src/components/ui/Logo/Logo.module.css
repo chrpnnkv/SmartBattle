@@ -1,0 +1,41 @@
+.logo {
+  display: inline-flex;
+  align-items: center;
+  gap: 10px;
+  text-decoration: none;
+  color: var(--color-text-primary);
+}
+
+.icon {
+  background: var(--color-primary);
+  color: #fff;
+  border-radius: var(--radius-md);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  flex-shrink: 0;
+}
+
+.text {
+  font-family: var(--font-display);
+  font-weight: 500;
+  color: var(--color-text-primary);
+  letter-spacing: -0.02em;
+}
+
+.text strong {
+  font-weight: 800;
+  color: var(--color-primary);
+}
+
+.sm .icon { width: 28px; height: 28px; border-radius: 8px; }
+.sm .icon svg { width: 15px; height: 15px; }
+.sm .text { font-size: 15px; }
+
+.md .icon { width: 36px; height: 36px; }
+.md .icon svg { width: 19px; height: 19px; }
+.md .text { font-size: 18px; }
+
+.lg .icon { width: 48px; height: 48px; border-radius: 14px; }
+.lg .icon svg { width: 25px; height: 25px; }
+.lg .text { font-size: 24px; }
