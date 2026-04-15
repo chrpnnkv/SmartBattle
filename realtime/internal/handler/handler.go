@@ -2,6 +2,7 @@ package handler
 
 import (
 	"encoding/json"
+	"fmt"
 	"log/slog"
 	"net/http"
 	"strings"
@@ -60,6 +61,7 @@ func New(
 // RegisterRoutes регистрирует все маршруты в переданном мультиплексоре.
 func (h *Handler) RegisterRoutes(mux *http.ServeMux) {
 	mux.HandleFunc("/ws", h.handleWebSocket)
+	mux.HandleFunc("/ws/", h.handleWebSocket) // поддержка /ws/{sessionId} от фронтенда
 	mux.HandleFunc("/api/rooms", h.handleRooms)
 	mux.HandleFunc("/api/rooms/", h.handleRoomByCode)
 	mux.HandleFunc("/health", h.handleHealth)
@@ -144,7 +146,7 @@ func (h *Handler) handleWebSocket(w http.ResponseWriter, r *http.Request) {
 	c.RoomCode = roomCode
 	c.UserID = userID
 
-	if err := rm.AddClient(c); err != nil {
+	if err := rm.AddClient(c, c.ID); err != nil {
 		writeErrorAndClose(conn, message.ErrCodeRoomFull, err.Error())
 		return
 	}
@@ -173,7 +175,7 @@ func (h *Handler) handleWebSocket(w http.ResponseWriter, r *http.Request) {
 	}))
 
 	if role == message.RoleStudent {
-		rm.BroadcastParticipantJoined(c)
+		rm.BroadcastParticipantJoined(c, c.ID)
 	}
 	c.Start()
 
@@ -234,11 +236,19 @@ func (h *Handler) createRoom(w http.ResponseWriter, r *http.Request) {
 
 	questions := make([]room.Question, len(req.Questions))
 	for i, q := range req.Questions {
+		opts := make([]room.QuestionOption, len(q.Options))
+		for j, text := range q.Options {
+			opts[j] = room.QuestionOption{
+				ID:        fmt.Sprintf("%s_o%d", q.ID, j),
+				Text:      text,
+				IsCorrect: j == q.CorrectIndex,
+				Color:     room.OptionColors[j%len(room.OptionColors)],
+			}
+		}
 		questions[i] = room.Question{
 			ID:           q.ID,
 			Text:         q.Text,
-			Options:      q.Options,
-			CorrectIndex: q.CorrectIndex,
+			Options:      opts,
 			TimeLimitSec: q.TimeLimitSec,
 		}
 	}

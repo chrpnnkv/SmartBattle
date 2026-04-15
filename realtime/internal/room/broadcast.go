@@ -6,24 +6,32 @@ import (
 )
 
 // BroadcastParticipantJoined уведомляет всех участников комнаты о входе нового студента.
-func (r *Room) BroadcastParticipantJoined(newClient *client.Client) {
+func (r *Room) BroadcastParticipantJoined(newClient *client.Client, participantID string) {
 	r.mu.RLock()
 	defer r.mu.RUnlock()
 
-	participants := make([]message.ParticipantInfo, 0, len(r.Participants))
-	for _, p := range r.Participants {
-		if p.Client.Role == message.RoleStudent {
-			participants = append(participants, message.ParticipantInfo{
-				Name: p.Name,
-				ID:   p.Client.ID,
-			})
+	p, ok := r.Participants[newClient.ID]
+	if !ok {
+		return
+	}
+
+	studentCount := 0
+	for _, part := range r.Participants {
+		if part.Client.Role == message.RoleStudent {
+			studentCount++
 		}
 	}
 
 	msg := message.New(message.TypeParticipantJoined, message.ParticipantJoinedPayload{
-		Name:         newClient.Name,
-		Participants: participants,
-		TotalCount:   len(participants),
+		Participant: message.SessionParticipant{
+			ID:             participantID,
+			Nickname:       p.Name,
+			AvatarInitials: p.AvatarInitials,
+			AvatarColor:    p.AvatarColor,
+			Score:          0,
+			AnsweredCount:  0,
+		},
+		TotalCount: studentCount,
 	})
 
 	r.broadcastLocked(msg)
@@ -33,7 +41,16 @@ func (r *Room) BroadcastParticipantJoined(newClient *client.Client) {
 func (r *Room) SendLeaderboard() {
 	r.mu.RLock()
 	defer r.mu.RUnlock()
+	participants := r.buildSessionParticipantsLocked()
+	entries := make([]message.ScoreEntry, len(participants))
+	for i, p := range participants {
+		entries[i] = message.ScoreEntry{
+			Rank:  i + 1,
+			Name:  p.Nickname,
+			Score: p.Score,
+		}
+	}
 	r.broadcastLocked(message.New(message.TypeLeaderboard, message.LeaderboardPayload{
-		Entries: r.buildLeaderboardLocked(0),
+		Entries: entries,
 	}))
 }

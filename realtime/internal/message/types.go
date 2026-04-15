@@ -26,14 +26,14 @@ const (
 	TypeParticipantLeft = "participant_left"
 	// TypeSessionStarted — сессия квиза запущена.
 	TypeSessionStarted = "session_started"
-	// TypeQuestion — текущий вопрос для всех участников.
-	TypeQuestion = "question"
+	// TypeQuestion — текущий вопрос для всех участников (= "question_started" для фронтенда).
+	TypeQuestion = "question_started"
 	// TypeAnswerReceived — уведомление преподавателю о поступившем ответе.
 	TypeAnswerReceived = "answer_received"
 	// TypeAnswerResult — результат ответа студенту (правильно/неправильно).
 	TypeAnswerResult = "answer_result"
-	// TypeQuestionResults — итоги по вопросу (для всех).
-	TypeQuestionResults = "question_results"
+	// TypeQuestionResults — итоги по вопросу (= "question_ended" для фронтенда).
+	TypeQuestionResults = "question_ended"
 	// TypeLeaderboard — текущий рейтинг участников.
 	TypeLeaderboard = "leaderboard"
 	// TypeSessionFinished — игровая сессия завершена.
@@ -74,6 +74,7 @@ type IncomingMessage struct {
 	Token       string `json:"token,omitempty"`
 	QuestionID  string `json:"question_id,omitempty"`
 	AnswerIndex int    `json:"answer_index"`
+	AnswerID    string `json:"answer_id,omitempty"` // ID варианта ответа (фронтенд-совместимый)
 }
 
 // OutgoingMessage — базовая обёртка исходящего сообщения.
@@ -92,17 +93,20 @@ type JoinedPayload struct {
 	TotalQuestions int    `json:"total_questions"`
 }
 
-// ParticipantInfo — краткая информация об участнике.
-type ParticipantInfo struct {
-	Name string `json:"name"`
-	ID   string `json:"id"`
+// SessionParticipant — участник сессии (совместим с фронтендом SessionParticipant).
+type SessionParticipant struct {
+	ID             string `json:"id"`
+	Nickname       string `json:"nickname"`
+	AvatarInitials string `json:"avatarInitials"`
+	AvatarColor    string `json:"avatarColor"`
+	Score          int    `json:"score"`
+	AnsweredCount  int    `json:"answeredCount"`
 }
 
-// ParticipantJoinedPayload — уведомление о подключении участника.
+// ParticipantJoinedPayload — уведомление о подключении участника (совместим с фронтендом WsParticipantJoinedPayload).
 type ParticipantJoinedPayload struct {
-	Name         string            `json:"name"`
-	Participants []ParticipantInfo `json:"participants"`
-	TotalCount   int               `json:"total_count"`
+	Participant SessionParticipant `json:"participant"`
+	TotalCount  int                `json:"totalCount"`
 }
 
 // ParticipantLeftPayload — уведомление об отключении участника.
@@ -117,21 +121,31 @@ type SessionStartedPayload struct {
 	TotalQuestions int    `json:"total_questions"`
 }
 
-// QuestionOption — вариант ответа на вопрос.
-type QuestionOption struct {
-	Index int    `json:"index"`
-	Text  string `json:"text"`
+// AnswerOptionData — вариант ответа (совместим с фронтендом AnswerOption).
+type AnswerOptionData struct {
+	ID        string `json:"id"`
+	Text      string `json:"text"`
+	IsCorrect bool   `json:"isCorrect"`
+	Color     string `json:"color"`
 }
 
-// QuestionPayload — вопрос, рассылаемый всем участникам.
-type QuestionPayload struct {
-	QuestionID   string           `json:"question_id"`
-	Index        int              `json:"index"`
-	Total        int              `json:"total"`
-	Text         string           `json:"text"`
-	Options      []QuestionOption `json:"options"`
-	TimeLimitSec int              `json:"time_limit_sec"`
-	StartedAt    time.Time        `json:"started_at"`
+// QuestionData — данные вопроса (совместим с фронтендом Question).
+type QuestionData struct {
+	ID               string             `json:"id"`
+	QuizID           string             `json:"quizId"`
+	Type             string             `json:"type"`
+	Text             string             `json:"text"`
+	Options          []AnswerOptionData `json:"options"`
+	TimeLimitSeconds int                `json:"timeLimitSeconds"`
+	Order            int                `json:"order"`
+}
+
+// QuestionStartedPayload — payload события question_started (совместим с фронтендом WsQuestionStartedPayload).
+type QuestionStartedPayload struct {
+	Question       QuestionData `json:"question"`
+	QuestionIndex  int          `json:"questionIndex"`  // 0-based
+	TotalQuestions int          `json:"totalQuestions"`
+	StartedAt      int64        `json:"startedAt"` // epoch ms
 }
 
 // AnswerReceivedPayload — уведомление преподавателю о поступившем ответе.
@@ -149,18 +163,38 @@ type AnswerResultPayload struct {
 	TotalScore   int  `json:"total_score"`
 }
 
-// AnswerStat — статистика ответов по одному варианту.
-type AnswerStat struct {
-	OptionIndex int `json:"option_index"`
-	Count       int `json:"count"`
+// AnswerDistribution — статистика ответов по одному варианту.
+type AnswerDistribution struct {
+	OptionID   string `json:"optionId"`
+	OptionText string `json:"optionText"`
+	Count      int    `json:"count"`
+	IsCorrect  bool   `json:"isCorrect"`
+	Color      string `json:"color"`
 }
 
-// QuestionResultsPayload — итоги по вопросу.
-type QuestionResultsPayload struct {
-	QuestionID   string       `json:"question_id"`
-	CorrectIndex int          `json:"correct_index"`
-	Stats        []AnswerStat `json:"stats"`
-	Leaderboard  []ScoreEntry `json:"leaderboard"`
+// ParticipantShort — краткая информация для списка быстрых ответивших.
+type ParticipantShort struct {
+	ID       string `json:"id"`
+	Nickname string `json:"nickname"`
+}
+
+// QuestionReport — отчёт по вопросу (совместим с фронтендом QuestionReport).
+type QuestionReport struct {
+	QuestionID                string               `json:"questionId"`
+	QuestionText              string               `json:"questionText"`
+	CorrectPercent            int                  `json:"correctPercent"`
+	AvgResponseTimeMs         int                  `json:"avgResponseTimeMs"`
+	MostCommonWrongOptionID   string               `json:"mostCommonWrongOptionId,omitempty"`
+	MostCommonWrongOptionText string               `json:"mostCommonWrongOptionText,omitempty"`
+	Distribution              []AnswerDistribution `json:"distribution"`
+	FastestCorrectParticipants []ParticipantShort  `json:"fastestCorrectParticipants"`
+}
+
+// QuestionEndedPayload — payload события question_ended (совместим с фронтендом WsQuestionEndedPayload).
+type QuestionEndedPayload struct {
+	QuestionReport QuestionReport       `json:"questionReport"`
+	Leaderboard    []SessionParticipant `json:"leaderboard"`
+	EndedAt        int64                `json:"endedAt"` // epoch ms
 }
 
 // ScoreEntry — строка рейтинга.
