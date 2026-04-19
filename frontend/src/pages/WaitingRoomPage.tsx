@@ -24,6 +24,7 @@ export default function WaitingRoomPage() {
   const stateData = location.state as { participantId?: string; quizTitle?: string } | null;
 
   const [participants, setParticipants] = useState<{ id: string; nickname: string }[]>([]);
+  const [wsError, setWsError] = useState<string | null>(null);
   const wsConnected = useRef(false);
 
   
@@ -48,7 +49,17 @@ export default function WaitingRoomPage() {
     if (!sessionId || wsConnected.current) return;
     wsConnected.current = true;
 
-    wsService.connect(sessionId, stateData?.participantId);
+    wsService.connect(sessionId, {
+      roomCode: sessionStorage.getItem('sb_pin') ?? '',
+      name: sessionStorage.getItem('sb_nickname') ?? '',
+      participantId: stateData?.participantId,
+    });
+
+    wsService.on<{ code: string; message: string }>('error', (payload) => {
+      setWsError(payload.message);
+    });
+
+    wsService.on<{ quiz_title: string; total_questions: number }>('joined', (_payload) => {});
 
     wsService.on<WsParticipantJoinedPayload>('participant_joined', (payload) => {
       dispatch(participantJoined(payload.participant));
@@ -121,6 +132,19 @@ export default function WaitingRoomPage() {
   const count = participants.length;
   const shown = participants.slice(0, 7);
   const extra = Math.max(0, count - 7);
+
+  if (wsError) {
+    return (
+      <div className={styles.page}>
+        <div className={styles.bg} aria-hidden="true" />
+        <div className={styles.card}>
+          <p style={{ color: '#ef4444', fontWeight: 600 }}>Ошибка подключения</p>
+          <p>{wsError}</p>
+          <button onClick={() => navigate('/')}>На главную</button>
+        </div>
+      </div>
+    );
+  }
 
   return (
     <div className={styles.page}>

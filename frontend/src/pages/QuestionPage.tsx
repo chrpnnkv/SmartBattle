@@ -254,6 +254,7 @@ export default function QuestionPage() {
   const nextTimerRef = useRef<ReturnType<typeof setInterval> | null>(null);
   const answerStartTime = useRef(Date.now());
   const [pin, setPin] = useState('');
+  const [wsErrorMsg, setWsErrorMsg] = useState<string | null>(null);
 
   
   const scoreRef = useRef(0);
@@ -341,7 +342,11 @@ export default function QuestionPage() {
     
     if (!wsConnected.current) {
       wsConnected.current = true;
-      wsService.connect(sessionId, participantId || undefined);
+      wsService.connect(sessionId, {
+        roomCode: sessionStorage.getItem('sb_pin') ?? '',
+        name: sessionStorage.getItem('sb_nickname') ?? '',
+        participantId: participantId || undefined,
+      });
     }
 
     wsService.on<WsQuestionStartedPayload>('question_started', (payload) => {
@@ -435,6 +440,18 @@ export default function QuestionPage() {
       }
     });
 
+    wsService.on<{ code: string; message: string }>('error', (payload) => {
+      setWsErrorMsg(payload.message);
+    });
+
+    wsService.on<{ quiz_title: string; total_questions: number }>('joined', (_payload) => {});
+
+    wsService.on<{ correct: boolean; score: number; total_score: number }>('answer_result', (result) => {
+      pendingScoreRef.current = result.score;
+      pendingCorrectRef.current = result.correct;
+      setLastAnswerCorrect(result.correct);
+    });
+
     wsService.on('session_finished', () => {
       navigate(`/session/${sessionId}/finished`, {
         state: {
@@ -505,6 +522,7 @@ export default function QuestionPage() {
     answeredThisQuestionRef.current = true;
     setLastAnswerCorrect(isCorrect);
     notifyAnswered();
+    wsService.send('answer', { question_id: currentQuestion.id, answer_id: optionId });
     api.sessions.submitAnswer({
       sessionId: sessionId!,
       participantId,
@@ -532,6 +550,7 @@ export default function QuestionPage() {
     answeredThisQuestionRef.current = true;
     setLastAnswerCorrect(allCorrect);
     notifyAnswered();
+    wsService.send('answer', { question_id: currentQuestion.id, answer_id: selectedIds.join(',') });
     api.sessions.submitAnswer({
       sessionId: sessionId!,
       participantId,
@@ -559,6 +578,7 @@ export default function QuestionPage() {
     setTotalAnswered((t) => { const n = t+1; totalRef.current = n; return n; });
     answeredThisQuestionRef.current = true;
     notifyAnswered();
+    wsService.send('answer', { question_id: currentQuestion.id, answer_id: text });
     api.sessions.submitAnswer({
       sessionId: sessionId!,
       participantId,
@@ -574,6 +594,16 @@ export default function QuestionPage() {
   };
 
   
+  if (wsErrorMsg) {
+    return (
+      <div className={styles.loading}>
+        <p style={{ color: '#ef4444', fontWeight: 600 }}>Ошибка подключения</p>
+        <p>{wsErrorMsg}</p>
+        <button onClick={() => navigate('/')}>На главную</button>
+      </div>
+    );
+  }
+
   if (!currentQuestion) {
     return (
       <div className={styles.loading}>

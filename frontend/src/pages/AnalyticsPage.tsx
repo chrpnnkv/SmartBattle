@@ -7,8 +7,8 @@ import { useAppDispatch, useAppSelector } from '../hooks/redux';
 import { startSession, endSession, questionEnded, participantJoined, sessionFinished } from '../store/slices/sessionSlice';
 import { fetchSession } from '../store/slices/sessionSlice';
 import { fetchQuizById } from '../store/slices/quizSlice';
-import { wsService } from '../api/wsService';
-import type { WsQuestionEndedPayload, WsParticipantJoinedPayload, QuestionReport, Question, QuestionType } from '../types';
+import { wsService, USE_MOCK } from '../api/wsService';
+import type { WsQuestionEndedPayload, WsQuestionStartedPayload, WsParticipantJoinedPayload, QuestionReport, Question, QuestionType } from '../types';
 import styles from './AnalyticsPage.module.css';
 
 const IconClock = () => (
@@ -164,6 +164,7 @@ export default function AnalyticsPage() {
   const [report, setReport] = useState<QuestionReport | null>(null);
   const [questionIdx, setQuestionIdx] = useState(0);
   const [phase, setPhase] = useState<'lobby' | 'question_active' | 'question_results' | 'finished'>('lobby');
+  const [wsErrorMsg, setWsErrorMsg] = useState<string | null>(null);
   const [participantCount, setParticipantCount] = useState(0);
   const [answeredCount, setAnsweredCount] = useState(0);
   const [timeLeft, setTimeLeft] = useState(0);
@@ -176,6 +177,7 @@ export default function AnalyticsPage() {
   const resultsTimerRef = useRef<ReturnType<typeof setInterval> | null>(null);
   const answeredPollRef = useRef<ReturnType<typeof setInterval> | null>(null);
   const questionIdxRef = useRef(0);
+  const totalQuestionsRef = useRef(0);
   const wsConnected = useRef(false);
 
   
@@ -200,8 +202,19 @@ export default function AnalyticsPage() {
 
   
   useEffect(() => { questionIdxRef.current = questionIdx; }, [questionIdx]);
+  useEffect(() => { totalQuestionsRef.current = totalQuestions; }, [totalQuestions]);
 
   
+  const onTimerExpired = () => {
+    if (answeredPollRef.current) clearInterval(answeredPollRef.current);
+    if (USE_MOCK) {
+      wsService.send('end_question', { questionIndex: questionIdxRef.current });
+    } else {
+      const isLast = questionIdxRef.current >= totalQuestionsRef.current - 1;
+      wsService.send(isLast ? 'finish_session' : 'next_question', {});
+    }
+  };
+
   const startTimer = (seconds: number) => {
     setTotalTime(seconds);
     setTimeLeft(seconds);
@@ -210,8 +223,7 @@ export default function AnalyticsPage() {
       setTimeLeft((t) => {
         if (t <= 1) {
           clearInterval(timerRef.current!);
-          if (answeredPollRef.current) clearInterval(answeredPollRef.current);
-          wsService.send('end_question', { questionIndex: questionIdxRef.current });
+          onTimerExpired();
           return 0;
         }
         return t - 1;
@@ -244,7 +256,7 @@ export default function AnalyticsPage() {
         if (count >= totalParticipants && totalParticipants > 0 && isStudentPaced) {
           clearInterval(answeredPollRef.current!);
           if (timerRef.current) clearInterval(timerRef.current);
-          wsService.send('end_question', { questionIndex: questionIdxRef.current });
+          onTimerExpired();
         }
       } catch {  }
     }, 1000);
@@ -253,55 +265,74 @@ export default function AnalyticsPage() {
   
   const handleNextQuestion = () => {
     if (!session || !currentQuiz) return;
-    const nextIdx = questionIdx + 1;
-    if (nextIdx >= currentQuiz.questions.length) {
-      dispatch(endSession(session.id));
-      setPhase('finished');
-      return;
+    if (USE_MOCK) {
+      const nextIdx = questionIdx + 1;
+      if (nextIdx >= currentQuiz.questions.length) {
+        dispatch(endSession(session.id));
+        setPhase('finished');
+        return;
+      }
+      const nextQ = currentQuiz.questions[nextIdx];
+      setQuestionIdx(nextIdx);
+      questionIdxRef.current = nextIdx;
+      setReport(null);
+      setAnsweredCount(0);
+      setPhase('question_active');
+      wsService.send('start_question', {
+        question: nextQ,
+        questionIndex: nextIdx,
+        totalQuestions: currentQuiz.questions.length,
+      });
+      startTimer(nextQ.timeLimitSeconds ?? 30);
+      startAnsweredPoll(session.id, session.participants.length);
+    } else {
+      const isLast = questionIdxRef.current >= currentQuiz.questions.length - 1;
+      setReport(null);
+      wsService.send(isLast ? 'finish_session' : 'next_question', {});
     }
-    const nextQ = currentQuiz.questions[nextIdx];
-    setQuestionIdx(nextIdx);
-    questionIdxRef.current = nextIdx;
-    setReport(null);
-    setAnsweredCount(0);
-    setPhase('question_active');
-    wsService.send('start_question', {
-      question: nextQ,
-      questionIndex: nextIdx,
-      totalQuestions: currentQuiz.questions.length,
-    });
-    startTimer(nextQ.timeLimitSeconds ?? 30);
-    startAnsweredPoll(session.id, session.participants.length);
   };
 
   const handleStart = async () => {
     if (!session || !currentQuiz) return;
-    await dispatch(startSession(session.id));
-    const firstQ = currentQuiz.questions[0];
-    setPhase('question_active');
-    setQuestionIdx(0);
-    questionIdxRef.current = 0;
-    setAnsweredCount(0);
-    wsService.send('start_question', {
-      question: firstQ,
-      questionIndex: 0,
-      totalQuestions: currentQuiz.questions.length,
-    });
-    startTimer(firstQ?.timeLimitSeconds ?? 30);
-    startAnsweredPoll(session.id, session.participants.length);
+    if (USE_MOCK) {
+      await dispatch(startSession(session.id));
+      const firstQ = currentQuiz.questions[0];
+      setPhase('question_active');
+      setQuestionIdx(0);
+      questionIdxRef.current = 0;
+      setAnsweredCount(0);
+      wsService.send('start_question', {
+        question: firstQ,
+        questionIndex: 0,
+        totalQuestions: currentQuiz.questions.length,
+      });
+      startTimer(firstQ?.timeLimitSeconds ?? 30);
+      startAnsweredPoll(session.id, session.participants.length);
+    } else {
+      // start_session автоматически запускает первый вопрос на сервере
+      wsService.send('start_session', {});
+    }
   };
 
   const handleEndQuestion = () => {
     if (timerRef.current) clearInterval(timerRef.current);
-    if (answeredPollRef.current) clearInterval(answeredPollRef.current);
-    wsService.send('end_question', { questionIndex: questionIdxRef.current });
+    onTimerExpired();
   };
 
   
   useEffect(() => {
     if (!session || wsConnected.current) return;
     wsConnected.current = true;
-    wsService.connect(session.id);
+    wsService.connect(session.id, {
+      roomCode: session.pin,
+      token: localStorage.getItem('accessToken') ?? '',
+    });
+
+    wsService.on<{ code: string; message: string }>('error', (payload) => {
+      setWsErrorMsg(`[${payload.code}] ${payload.message}`);
+    });
+
+    wsService.on<{ quiz_title: string; total_questions: number }>('joined', (_payload) => {});
 
     wsService.on<WsParticipantJoinedPayload>('participant_joined', (payload) => {
       dispatch(participantJoined(payload.participant));
@@ -322,6 +353,30 @@ export default function AnalyticsPage() {
       setPhase('finished');
     });
 
+    if (!USE_MOCK) {
+      wsService.on<WsQuestionStartedPayload>('question_started', (payload) => {
+        setQuestionIdx(payload.questionIndex);
+        questionIdxRef.current = payload.questionIndex;
+        setPhase('question_active');
+        setReport(null);
+        setAnsweredCount(0);
+        startTimer(payload.question.timeLimitSeconds ?? 30);
+      });
+
+      wsService.on<{ participant_name: string; answers_count: number; total_participants: number }>(
+        'answer_received',
+        (payload) => {
+          setAnsweredCount(payload.answers_count);
+          if (isStudentPaced && payload.answers_count >= payload.total_participants) {
+            if (timerRef.current) clearInterval(timerRef.current);
+            if (answeredPollRef.current) clearInterval(answeredPollRef.current);
+            const isLast = questionIdxRef.current >= totalQuestionsRef.current - 1;
+            wsService.send(isLast ? 'finish_session' : 'next_question', {});
+          }
+        }
+      );
+    }
+
     return () => {
       wsService.disconnect();
       wsConnected.current = false;
@@ -341,6 +396,19 @@ export default function AnalyticsPage() {
   }, [phase, isStudentPaced]); 
 
   
+
+  if (wsErrorMsg) {
+    return (
+      <AppLayout>
+        <div className={styles.finishedScreen}>
+          <div className={styles.finishedCard}>
+            <p style={{ color: '#ef4444', fontWeight: 600 }}>Ошибка WS</p>
+            <p>{wsErrorMsg}</p>
+          </div>
+        </div>
+      </AppLayout>
+    );
+  }
 
   if (phase === 'lobby' && session) {
     return (

@@ -110,6 +110,7 @@ export default function JoinPage() {
   const handleSubmit = (e: React.FormEvent) => {
     e.preventDefault();
     if (!validate()) return;
+    sessionStorage.setItem('sb_pin', pin.trim());
     dispatch(joinSession({ pin: pin.trim(), nickname: nickname.trim() }));
   };
 

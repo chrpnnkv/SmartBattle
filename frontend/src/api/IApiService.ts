@@ -52,12 +52,19 @@ export interface IAnalyticsApi {
 
 export type WsEventHandler<T = unknown> = (payload: T) => void;
 
+export interface WsConnectOptions {
+  roomCode?: string;
+  name?: string;
+  token?: string;
+  participantId?: string;
+}
+
 export interface IWebSocketService {
-  connect(sessionId: string, participantId?: string): void;
+  connect(sessionId: string, options?: WsConnectOptions): void;
   disconnect(): void;
   on<T = unknown>(event: string, handler: WsEventHandler<T>): void;
   off(event: string): void;
-  send(event: string, payload: unknown): void;
+  send(event: string, payload?: unknown): void;
   isConnected(): boolean;
 }
 

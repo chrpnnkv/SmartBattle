@@ -1,4 +1,4 @@
-import type { IWebSocketService, WsEventHandler } from '../api/IApiService';
+import type { IWebSocketService, WsConnectOptions, WsEventHandler } from '../api/IApiService';
 import type {
   SessionParticipant,
   Question,
@@ -52,8 +52,8 @@ class MockWebSocketService implements IWebSocketService {
   private currentSessionId = '';
   private currentQuestion: Question | null = null;
 
-  connect(sessionId: string, _participantId?: string): void {
-    
+  connect(sessionId: string, _options?: WsConnectOptions): void {
+
     this.timers.forEach(clearInterval);
     this.timers = [];
     this.sentParticipants.clear();
@@ -218,26 +218,45 @@ class MockWebSocketService implements IWebSocketService {
 class RealWebSocketService implements IWebSocketService {
   private socket: WebSocket | null = null;
   private handlers: Map<string, WsEventHandler> = new Map();
+  private pingTimer: ReturnType<typeof setInterval> | null = null;
   private readonly WS_URL = import.meta.env.VITE_WS_URL ?? 'ws://localhost:8081';
 
-  connect(sessionId: string, participantId?: string): void {
-    const url = `${this.WS_URL}/ws/${sessionId}${participantId ? `?pid=${participantId}` : ''}`;
+  connect(sessionId: string, options?: WsConnectOptions): void {
+    if (this.socket) this.disconnect();
+    const url = `${this.WS_URL}/ws`;
     this.socket = new WebSocket(url);
+
+    this.socket.onopen = () => {
+      this.socket!.send(JSON.stringify({
+        type: 'join',
+        room_code: options?.roomCode ?? sessionId,
+        name: options?.name ?? '',
+        token: options?.token ?? '',
+      }));
+      this.pingTimer = setInterval(() => {
+        if (this.socket?.readyState === WebSocket.OPEN) {
+          this.socket.send(JSON.stringify({ type: 'ping' }));
+        }
+      }, 30_000);
+    };
 
     this.socket.onmessage = (e: MessageEvent<string>) => {
       try {
-        const { type, payload } = JSON.parse(e.data) as { type: string; payload: unknown };
-        this.handlers.get(type)?.(payload);
+        const msg = JSON.parse(e.data) as { type: string; payload?: unknown };
+        this.handlers.get(msg.type)?.(msg.payload ?? null);
       } catch {
-        
+
       }
     };
 
     this.socket.onerror = () => {  };
-    this.socket.onclose = () => {  };
+    this.socket.onclose = () => {
+      if (this.pingTimer) { clearInterval(this.pingTimer); this.pingTimer = null; }
+    };
   }
 
   disconnect(): void {
+    if (this.pingTimer) { clearInterval(this.pingTimer); this.pingTimer = null; }
     this.socket?.close();
     this.socket = null;
     this.handlers.clear();
@@ -251,9 +270,12 @@ class RealWebSocketService implements IWebSocketService {
     this.handlers.delete(event);
   }
 
-  send(event: string, payload: unknown): void {
+  send(event: string, payload?: unknown): void {
     if (this.socket?.readyState === WebSocket.OPEN) {
-      this.socket.send(JSON.stringify({ type: event, payload }));
+      const msg = payload && typeof payload === 'object'
+        ? { type: event, ...payload as Record<string, unknown> }
+        : { type: event };
+      this.socket.send(JSON.stringify(msg));
     }
   }
 
@@ -262,7 +284,7 @@ class RealWebSocketService implements IWebSocketService {
   }
 }
 
-const USE_MOCK = import.meta.env.VITE_USE_MOCK !== 'false';
+export const USE_MOCK = import.meta.env.VITE_USE_MOCK !== 'false';
 
 export const wsService: IWebSocketService = USE_MOCK
   ? new MockWebSocketService()

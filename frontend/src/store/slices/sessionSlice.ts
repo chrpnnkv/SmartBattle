@@ -108,7 +108,6 @@ const sessionSlice = createSlice({
       state.timeLeftSeconds = 0;
       state.answerSubmitted = false;
       state.selectedAnswerId = null;
-      state.participants = [];
       state.error = null;
     },
     
@@ -165,7 +164,6 @@ const sessionSlice = createSlice({
         state.timeLeftSeconds = 0;
         state.answerSubmitted = false;
         state.selectedAnswerId = null;
-        state.participants = [];
         state.error = null;
       })
       .addCase(createSession.rejected, (state, action) => {
