@@ -36,7 +36,7 @@ function readSignal(sessionId: string): WsSignal | null {
   }
 }
 
-function writeSignal(signal: WsSignal): void {
+export function writeSignal(signal: WsSignal): void {
   try {
     localStorage.setItem(wsSignalKey(signal.sessionId), JSON.stringify(signal));
   } catch {

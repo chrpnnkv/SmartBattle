@@ -84,6 +84,7 @@ export default function QuizBuilderPage() {
   const { currentQuiz, isLoading } = useAppSelector((s) => s.quiz);
 
   const [title, setTitle] = useState('');
+  const [mode, setMode] = useState<'teacher_paced' | 'student_paced'>('teacher_paced');
   const [settings, setSettings] = useState<QuizSettings>({
     shuffleQuestions: false, shuffleAnswers: false, showLeaderboard: true, themeColor: 'purple',
   });
@@ -99,6 +100,7 @@ export default function QuizBuilderPage() {
   useEffect(() => {
     if (isEditing && currentQuiz) {
       setTitle(currentQuiz.title);
+      setMode(currentQuiz.mode);
       setSettings(currentQuiz.settings);
       setQuestions(currentQuiz.questions.length > 0 ? currentQuiz.questions : [makeEmptyQuestion(1)]);
     }
@@ -162,7 +164,7 @@ export default function QuizBuilderPage() {
     if (!title.trim()) { setTitleError('Введите название квиза'); return; }
     setIsSaving(true);
     const payload = {
-      title, settings,
+      title, settings, mode,
       status: publish ? 'published' as const : 'draft' as const,
       questions: questions.map(({ id: _id, quizId: _qid, ...rest }) => rest),
     };

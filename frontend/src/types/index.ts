@@ -93,6 +93,7 @@ export interface CreateQuizRequest {
   title: string;
   description?: string;
   mode: QuizMode;
+  status?: QuizStatus;
   settings: QuizSettings;
   questions: Omit<Question, 'id' | 'quizId'>[];
 }

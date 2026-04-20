@@ -85,4 +85,26 @@ describe('JoinPage', () => {
       expect(sessionStorage.getItem('sb_pin')).toBe('123456');
     });
   });
+
+  describe('PIN paste', () => {
+    it('fills all cells when pasting 6 digits', () => {
+      renderJoinPage();
+      const firstInput = screen.getAllByRole('textbox')[0];
+      fireEvent.paste(firstInput, {
+        clipboardData: { getData: () => '654321' },
+      });
+      const inputs = screen.getAllByRole('textbox').slice(0, 6) as HTMLInputElement[];
+      expect(inputs.map((el) => el.value).join('')).toBe('654321');
+    });
+
+    it('ignores non-digit characters on paste', () => {
+      renderJoinPage();
+      const firstInput = screen.getAllByRole('textbox')[0];
+      fireEvent.paste(firstInput, {
+        clipboardData: { getData: () => 'abc123' },
+      });
+      const inputs = screen.getAllByRole('textbox').slice(0, 6) as HTMLInputElement[];
+      expect(inputs.map((el) => el.value).join('')).toBe('123');
+    });
+  });
 });

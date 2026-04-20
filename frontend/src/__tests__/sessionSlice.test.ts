@@ -4,10 +4,13 @@ import reducer, {
   participantJoined,
   participantLeft,
   questionStarted,
+  questionEnded,
   tickTimer,
+  leaderboardUpdated,
   sessionFinished,
   clearSession,
 } from '../store/slices/sessionSlice';
+import type { QuestionReport } from '../types';
 import type { GameSession, SessionParticipant, Question } from '../types';
 
 const mockParticipant: SessionParticipant = {
@@ -150,6 +153,47 @@ describe('sessionSlice', () => {
 
     it('does nothing when session is null', () => {
       const result = reducer(initialState, sessionFinished());
+      expect(result.session).toBeNull();
+    });
+  });
+
+  describe('questionEnded', () => {
+    const mockReport: QuestionReport = {
+      questionId: 'q1',
+      questionText: 'Что такое TypeScript?',
+      correctPercent: 75,
+      avgResponseTimeMs: 2300,
+      distribution: [],
+      fastestCorrectParticipants: [],
+    };
+
+    it('saves report to state', () => {
+      const result = reducer(initialState, questionEnded(mockReport));
+      expect(result.questionReport).toEqual(mockReport);
+    });
+
+    it('sets session status to question_results', () => {
+      const state = { ...initialState, session: { ...mockSession, status: 'question_active' as const } };
+      const result = reducer(state, questionEnded(mockReport));
+      expect(result.session!.status).toBe('question_results');
+    });
+
+    it('does nothing to session when session is null', () => {
+      const result = reducer(initialState, questionEnded(mockReport));
+      expect(result.session).toBeNull();
+    });
+  });
+
+  describe('leaderboardUpdated', () => {
+    it('replaces session participants', () => {
+      const updated = [{ ...mockParticipant, score: 1200 }];
+      const state = { ...initialState, session: { ...mockSession, participants: [mockParticipant] } };
+      const result = reducer(state, leaderboardUpdated(updated));
+      expect(result.session!.participants).toEqual(updated);
+    });
+
+    it('does nothing when session is null', () => {
+      const result = reducer(initialState, leaderboardUpdated([mockParticipant]));
       expect(result.session).toBeNull();
     });
   });

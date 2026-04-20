@@ -5,6 +5,7 @@ import type {
   ISessionApi,
   IAnalyticsApi,
 } from '../IApiService';
+import { writeSignal } from '../wsService';
 import type {
   AuthResponse,
   ChangePasswordRequest,
@@ -320,7 +321,7 @@ const quizzesApi: IQuizApi = {
     const quiz: Quiz = {
       ...data,
       id: uid(),
-      status: data.status ?? 'draft',
+      status: data.status ?? ('draft' as const),
       questionCount: data.questions.length,
       estimatedMinutes: Math.ceil(
         data.questions.reduce((s, q) => s + q.timeLimitSeconds, 0) / 60
@@ -343,7 +344,15 @@ const quizzesApi: IQuizApi = {
     await delay(500);
     const idx = MOCK_QUIZZES.findIndex((q) => q.id === id);
     if (idx === -1) throw new Error('Quiz not found');
-    MOCK_QUIZZES[idx] = { ...MOCK_QUIZZES[idx], ...data, updatedAt: new Date().toISOString() };
+    const { questions: newQuestions, ...rest } = data;
+    MOCK_QUIZZES[idx] = {
+      ...MOCK_QUIZZES[idx],
+      ...rest,
+      questions: newQuestions
+        ? newQuestions.map((q, i) => ({ ...q, id: uid(), quizId: id, order: i + 1 }))
+        : MOCK_QUIZZES[idx].questions,
+      updatedAt: new Date().toISOString(),
+    };
     return MOCK_QUIZZES[idx];
   },
   async deleteQuiz(id: string) {

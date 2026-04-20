@@ -99,4 +99,15 @@ describe('RealWebSocketService', () => {
       expect(handler).not.toHaveBeenCalled();
     });
   });
+
+  describe('send before socket is open', () => {
+    it('does not throw and does not send when readyState is CONNECTING', () => {
+      fakeWs.readyState = 0;
+      expect(() => service.send('start_session', {})).not.toThrow();
+      const sentAfterOpen = fakeWs.send.mock.calls.filter(
+        (c) => JSON.parse(c[0] as string).type === 'start_session'
+      );
+      expect(sentAfterOpen).toHaveLength(0);
+    });
+  });
 });
