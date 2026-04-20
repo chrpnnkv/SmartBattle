@@ -215,7 +215,7 @@ class MockWebSocketService implements IWebSocketService {
   }
 }
 
-class RealWebSocketService implements IWebSocketService {
+export class RealWebSocketService implements IWebSocketService {
   private socket: WebSocket | null = null;
   private handlers: Map<string, WsEventHandler> = new Map();
   private pingTimer: ReturnType<typeof setInterval> | null = null;
