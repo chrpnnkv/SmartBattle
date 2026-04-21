@@ -1,7 +1,7 @@
 import { useEffect, useRef, useState } from 'react';
 import { useParams, useLocation, useNavigate } from 'react-router-dom';
 import { useAppDispatch, useAppSelector } from '../hooks/redux';
-import { participantJoined, questionStarted } from '../store/slices/sessionSlice';
+import { participantJoined, participantLeft, questionStarted } from '../store/slices/sessionSlice';
 import { wsService } from '../api/wsService';
 import type { WsParticipantJoinedPayload, WsQuestionStartedPayload } from '../types';
 import Logo from '../components/ui/Logo/Logo';
@@ -68,6 +68,11 @@ export default function WaitingRoomPage() {
         if (exists) return prev;
         return [...prev, { id: payload.participant.id, nickname: payload.participant.nickname }];
       });
+    });
+
+    wsService.on<{ participant_id: string }>('participant_left', (payload) => {
+      dispatch(participantLeft(payload.participant_id));
+      setParticipants((prev) => prev.filter((p) => p.id !== payload.participant_id));
     });
 
     wsService.on<WsQuestionStartedPayload>('question_started', (payload) => {

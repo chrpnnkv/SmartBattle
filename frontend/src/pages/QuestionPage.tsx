@@ -371,7 +371,7 @@ export default function QuestionPage() {
       answeredThisQuestionRef.current = false;
       answerStartTime.current = Date.now();
       
-      const elapsed = payload.startedAt
+      const elapsed = payload.startedAt != null
         ? Math.round((Date.now() - payload.startedAt) / 1000)
         : 0;
       const syncedTime = Math.max(1, payload.question.timeLimitSeconds - elapsed);

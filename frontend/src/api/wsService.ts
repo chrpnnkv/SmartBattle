@@ -219,14 +219,18 @@ export class RealWebSocketService implements IWebSocketService {
   private socket: WebSocket | null = null;
   private handlers: Map<string, WsEventHandler> = new Map();
   private pingTimer: ReturnType<typeof setInterval> | null = null;
+  private connecting = false;
   private readonly WS_URL = import.meta.env.VITE_WS_URL ?? 'ws://localhost:8081';
 
   connect(sessionId: string, options?: WsConnectOptions): void {
+    if (this.connecting) return;
     if (this.socket) this.disconnect();
+    this.connecting = true;
     const url = `${this.WS_URL}/ws`;
     this.socket = new WebSocket(url);
 
     this.socket.onopen = () => {
+      this.connecting = false;
       this.socket!.send(JSON.stringify({
         type: 'join',
         room_code: options?.roomCode ?? sessionId,
@@ -249,13 +253,21 @@ export class RealWebSocketService implements IWebSocketService {
       }
     };
 
-    this.socket.onerror = () => {  };
-    this.socket.onclose = () => {
+    this.socket.onerror = () => {
+      this.connecting = false;
+      this.handlers.get('error')?.({ code: 'connection_error', message: 'Ошибка соединения с сервером' });
+    };
+    this.socket.onclose = (e: CloseEvent) => {
+      this.connecting = false;
       if (this.pingTimer) { clearInterval(this.pingTimer); this.pingTimer = null; }
+      if (!e.wasClean) {
+        this.handlers.get('error')?.({ code: 'disconnected', message: 'Соединение прервано' });
+      }
     };
   }
 
   disconnect(): void {
+    this.connecting = false;
     if (this.pingTimer) { clearInterval(this.pingTimer); this.pingTimer = null; }
     this.socket?.close();
     this.socket = null;
