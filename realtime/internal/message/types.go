@@ -42,8 +42,6 @@ const (
 	TypeError = "error"
 	// TypePong — ответ на heartbeat.
 	TypePong = "pong"
-	// TypeWaiting — комната в режиме ожидания участников.
-	TypeWaiting = "waiting"
 )
 
 // Роли участников
@@ -111,8 +109,9 @@ type ParticipantJoinedPayload struct {
 
 // ParticipantLeftPayload — уведомление об отключении участника.
 type ParticipantLeftPayload struct {
-	Name       string `json:"name"`
-	TotalCount int    `json:"total_count"`
+	ParticipantID string `json:"participant_id"`
+	Name          string `json:"name"`
+	TotalCount    int    `json:"totalCount"`
 }
 
 // SessionStartedPayload — данные о запуске сессии.

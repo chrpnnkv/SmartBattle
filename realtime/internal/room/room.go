@@ -185,6 +185,7 @@ func (r *Room) RemoveClient(clientID string) {
 	}
 	delete(r.Participants, clientID)
 	name := p.Name
+	participantID := p.ParticipantID
 	isTeacher := p.Client.Role == message.RoleTeacher
 	r.mu.Unlock()
 
@@ -198,8 +199,9 @@ func (r *Room) RemoveClient(clientID string) {
 	}
 
 	r.broadcast(message.New(message.TypeParticipantLeft, message.ParticipantLeftPayload{
-		Name:       name,
-		TotalCount: r.StudentCount(),
+		ParticipantID: participantID,
+		Name:          name,
+		TotalCount:    r.StudentCount(),
 	}))
 }
 
@@ -646,6 +648,12 @@ func (r *Room) sendQuestionEndedLocked() {
 	}
 
 	r.broadcastLocked(message.New(message.TypeQuestionResults, payload))
+
+	entries := make([]message.ScoreEntry, len(payload.Leaderboard))
+	for i, p := range payload.Leaderboard {
+		entries[i] = message.ScoreEntry{Rank: i + 1, Name: p.Nickname, Score: p.Score}
+	}
+	r.broadcastLocked(message.New(message.TypeLeaderboard, message.LeaderboardPayload{Entries: entries}))
 }
 
 // calcScore вычисляет очки за ответ с учётом скорости.
