@@ -20,7 +20,6 @@ func (r *QuizRepository) Create(quiz *models.Quiz) error {
 
 func (r *QuizRepository) GetByID(id uuid.UUID) (*models.Quiz, error) {
 	var quiz models.Quiz
-	// Жадная загрузка (Eager Loading) вопросов и опций
 	err := r.db.Preload("Questions.Options").First(&quiz, "id = ?", id).Error
 	return &quiz, err
 }
@@ -32,7 +31,6 @@ func (r *QuizRepository) GetByTeacherID(teacherID uuid.UUID) ([]models.Quiz, err
 }
 
 func (r *QuizRepository) Update(quiz *models.Quiz) error {
-	// Транзакционная замена: удаляем старые вопросы и сохраняем новые из payload
 	return r.db.Transaction(func(tx *gorm.DB) error {
 		if err := tx.Where("quiz_id = ?", quiz.ID).Delete(&models.Question{}).Error; err != nil {
 			return err

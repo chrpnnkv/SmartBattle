@@ -3,8 +3,6 @@ package service
 import (
 	"bytes"
 	"encoding/csv"
-	"encoding/json"
-	"strconv"
 
 	"github.com/chrpnnkv/SmartBattle/internal/models"
 	"github.com/chrpnnkv/SmartBattle/internal/repository"
@@ -20,11 +18,15 @@ func NewReportService(repo *repository.ReportRepository) *ReportService {
 }
 
 func (s *ReportService) SaveSessionReport(session *models.GameSession) error {
-	return s.repo.Save(session)
+	return s.repo.SaveSessionReport(session)
 }
 
 func (s *ReportService) GetTeacherReports(hostID uuid.UUID) ([]models.GameSession, error) {
-	return s.repo.GetByHostID(hostID)
+	return s.repo.GetTeacherReports(hostID)
+}
+
+func (s *ReportService) GetReportByID(id uuid.UUID) (*models.GameSession, error) {
+	return s.repo.GetByID(id)
 }
 
 func (s *ReportService) ExportCSV(id uuid.UUID) (*bytes.Buffer, error) {
@@ -33,30 +35,11 @@ func (s *ReportService) ExportCSV(id uuid.UUID) (*bytes.Buffer, error) {
 		return nil, err
 	}
 
-	var reportData struct {
-		Participants []struct {
-			Nickname   string `json:"nickname"`
-			TotalScore int    `json:"total_score"`
-			Rank       int    `json:"rank"`
-		} `json:"participants"`
-	}
+	b := &bytes.Buffer{}
+	w := csv.NewWriter(b)
+	w.Write([]string{"ID", "QuizID", "Status", "PIN"})
+	w.Write([]string{session.ID.String(), session.QuizID.String(), session.Status, session.PIN})
+	w.Flush()
 
-	if err := json.Unmarshal(session.ReportSnapshot, &reportData); err != nil {
-		return nil, err
-	}
-
-	buf := new(bytes.Buffer)
-	writer := csv.NewWriter(buf)
-
-	_ = writer.Write([]string{"Rank", "Nickname", "Total Score"})
-	for _, p := range reportData.Participants {
-		_ = writer.Write([]string{
-			strconv.Itoa(p.Rank),
-			p.Nickname,
-			strconv.Itoa(p.TotalScore),
-		})
-	}
-
-	writer.Flush()
-	return buf, nil
+	return b, nil
 }

@@ -14,13 +14,13 @@ func NewReportRepository(db *gorm.DB) *ReportRepository {
 	return &ReportRepository{db: db}
 }
 
-func (r *ReportRepository) Save(session *models.GameSession) error {
-	return r.db.Create(session).Error
+func (r *ReportRepository) SaveSessionReport(session *models.GameSession) error {
+	return r.db.Save(session).Error
 }
 
-func (r *ReportRepository) GetByHostID(hostID uuid.UUID) ([]models.GameSession, error) {
+func (r *ReportRepository) GetTeacherReports(hostID uuid.UUID) ([]models.GameSession, error) {
 	var sessions []models.GameSession
-	err := r.db.Where("host_id = ?", hostID).Order("started_at desc").Find(&sessions).Error
+	err := r.db.Where("host_id = ? AND status = ?", hostID, "finished").Order("started_at desc").Find(&sessions).Error
 	return sessions, err
 }
 

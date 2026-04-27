@@ -40,170 +40,6 @@ const docTemplate = `{
                 }
             }
         },
-        "/api/quizzes": {
-            "get": {
-                "security": [
-                    {
-                        "BearerAuth": []
-                    }
-                ],
-                "produces": [
-                    "application/json"
-                ],
-                "tags": [
-                    "Quizzes"
-                ],
-                "summary": "Список квизов преподавателя",
-                "responses": {
-                    "200": {
-                        "description": "OK",
-                        "schema": {
-                            "type": "array",
-                            "items": {
-                                "$ref": "#/definitions/github_com_chrpnnkv_SmartBattle_internal_models.Quiz"
-                            }
-                        }
-                    }
-                }
-            },
-            "post": {
-                "security": [
-                    {
-                        "BearerAuth": []
-                    }
-                ],
-                "consumes": [
-                    "application/json"
-                ],
-                "produces": [
-                    "application/json"
-                ],
-                "tags": [
-                    "Quizzes"
-                ],
-                "summary": "Создание Квиза",
-                "parameters": [
-                    {
-                        "description": "Структура квиза",
-                        "name": "request",
-                        "in": "body",
-                        "required": true,
-                        "schema": {
-                            "$ref": "#/definitions/github_com_chrpnnkv_SmartBattle_internal_models.Quiz"
-                        }
-                    }
-                ],
-                "responses": {
-                    "201": {
-                        "description": "Created",
-                        "schema": {
-                            "$ref": "#/definitions/github_com_chrpnnkv_SmartBattle_internal_models.Quiz"
-                        }
-                    }
-                }
-            }
-        },
-        "/api/quizzes/{id}": {
-            "get": {
-                "security": [
-                    {
-                        "BearerAuth": []
-                    }
-                ],
-                "produces": [
-                    "application/json"
-                ],
-                "tags": [
-                    "Quizzes"
-                ],
-                "summary": "Получить квиз по ID",
-                "parameters": [
-                    {
-                        "type": "string",
-                        "description": "ID Квиза",
-                        "name": "id",
-                        "in": "path",
-                        "required": true
-                    }
-                ],
-                "responses": {
-                    "200": {
-                        "description": "OK",
-                        "schema": {
-                            "$ref": "#/definitions/github_com_chrpnnkv_SmartBattle_internal_models.Quiz"
-                        }
-                    }
-                }
-            },
-            "put": {
-                "security": [
-                    {
-                        "BearerAuth": []
-                    }
-                ],
-                "consumes": [
-                    "application/json"
-                ],
-                "produces": [
-                    "application/json"
-                ],
-                "tags": [
-                    "Quizzes"
-                ],
-                "summary": "Обновление Квиза",
-                "parameters": [
-                    {
-                        "type": "string",
-                        "description": "ID Квиза",
-                        "name": "id",
-                        "in": "path",
-                        "required": true
-                    },
-                    {
-                        "description": "Новая структура квиза",
-                        "name": "request",
-                        "in": "body",
-                        "required": true,
-                        "schema": {
-                            "$ref": "#/definitions/github_com_chrpnnkv_SmartBattle_internal_models.Quiz"
-                        }
-                    }
-                ],
-                "responses": {
-                    "200": {
-                        "description": "OK",
-                        "schema": {
-                            "$ref": "#/definitions/github_com_chrpnnkv_SmartBattle_internal_models.Quiz"
-                        }
-                    }
-                }
-            },
-            "delete": {
-                "security": [
-                    {
-                        "BearerAuth": []
-                    }
-                ],
-                "tags": [
-                    "Quizzes"
-                ],
-                "summary": "Удалить квиз",
-                "parameters": [
-                    {
-                        "type": "string",
-                        "description": "ID Квиза",
-                        "name": "id",
-                        "in": "path",
-                        "required": true
-                    }
-                ],
-                "responses": {
-                    "204": {
-                        "description": "No Content"
-                    }
-                }
-            }
-        },
         "/api/reports": {
             "get": {
                 "security": [
@@ -224,8 +60,41 @@ const docTemplate = `{
                         "schema": {
                             "type": "array",
                             "items": {
-                                "$ref": "#/definitions/github_com_chrpnnkv_SmartBattle_internal_models.GameSession"
+                                "$ref": "#/definitions/internal_transport_http_handlers.GameReportDTO"
                             }
+                        }
+                    }
+                }
+            }
+        },
+        "/api/reports/{id}": {
+            "get": {
+                "security": [
+                    {
+                        "BearerAuth": []
+                    }
+                ],
+                "produces": [
+                    "application/json"
+                ],
+                "tags": [
+                    "Analytics"
+                ],
+                "summary": "Детальный отчет по игре",
+                "parameters": [
+                    {
+                        "type": "string",
+                        "description": "ID Сессии",
+                        "name": "id",
+                        "in": "path",
+                        "required": true
+                    }
+                ],
+                "responses": {
+                    "200": {
+                        "description": "OK",
+                        "schema": {
+                            "$ref": "#/definitions/internal_transport_http_handlers.GameReportDTO"
                         }
                     }
                 }
@@ -262,6 +131,159 @@ const docTemplate = `{
                         }
                     }
                 }
+            }
+        },
+        "/api/sessions": {
+            "post": {
+                "security": [
+                    {
+                        "BearerAuth": []
+                    }
+                ],
+                "consumes": [
+                    "application/json"
+                ],
+                "produces": [
+                    "application/json"
+                ],
+                "tags": [
+                    "Sessions"
+                ],
+                "summary": "Создать игровую сессию",
+                "parameters": [
+                    {
+                        "description": "ID квиза",
+                        "name": "request",
+                        "in": "body",
+                        "required": true,
+                        "schema": {
+                            "$ref": "#/definitions/internal_transport_http_handlers.CreateSessionReq"
+                        }
+                    }
+                ],
+                "responses": {
+                    "201": {
+                        "description": "Created",
+                        "schema": {
+                            "type": "object",
+                            "additionalProperties": true
+                        }
+                    }
+                }
+            }
+        },
+        "/api/sessions/answer": {
+            "post": {
+                "tags": [
+                    "Sessions"
+                ],
+                "summary": "Отправить ответ (Студент)",
+                "responses": {}
+            }
+        },
+        "/api/sessions/join": {
+            "post": {
+                "consumes": [
+                    "application/json"
+                ],
+                "produces": [
+                    "application/json"
+                ],
+                "tags": [
+                    "Sessions"
+                ],
+                "summary": "Присоединиться к игре (Студент)",
+                "parameters": [
+                    {
+                        "description": "PIN код и никнейм",
+                        "name": "request",
+                        "in": "body",
+                        "required": true,
+                        "schema": {
+                            "$ref": "#/definitions/internal_transport_http_handlers.JoinSessionReq"
+                        }
+                    }
+                ],
+                "responses": {
+                    "200": {
+                        "description": "OK",
+                        "schema": {
+                            "type": "object",
+                            "additionalProperties": true
+                        }
+                    }
+                }
+            }
+        },
+        "/api/sessions/{id}": {
+            "get": {
+                "produces": [
+                    "application/json"
+                ],
+                "tags": [
+                    "Sessions"
+                ],
+                "summary": "Получить статус сессии",
+                "parameters": [
+                    {
+                        "type": "string",
+                        "description": "ID Сессии",
+                        "name": "id",
+                        "in": "path",
+                        "required": true
+                    }
+                ],
+                "responses": {
+                    "200": {
+                        "description": "OK",
+                        "schema": {
+                            "type": "object",
+                            "additionalProperties": true
+                        }
+                    }
+                }
+            }
+        },
+        "/api/sessions/{id}/end": {
+            "post": {
+                "security": [
+                    {
+                        "BearerAuth": []
+                    }
+                ],
+                "tags": [
+                    "Sessions"
+                ],
+                "summary": "Завершить игру",
+                "responses": {}
+            }
+        },
+        "/api/sessions/{id}/next": {
+            "post": {
+                "security": [
+                    {
+                        "BearerAuth": []
+                    }
+                ],
+                "tags": [
+                    "Sessions"
+                ],
+                "summary": "Следующий вопрос",
+                "responses": {}
+            }
+        },
+        "/api/sessions/{id}/start": {
+            "post": {
+                "security": [
+                    {
+                        "BearerAuth": []
+                    }
+                ],
+                "tags": [
+                    "Sessions"
+                ],
+                "summary": "Начать игру",
+                "responses": {}
             }
         },
         "/auth/change-password": {
@@ -479,103 +501,31 @@ const docTemplate = `{
         "github_com_chrpnnkv_SmartBattle_internal_models.GameSession": {
             "type": "object",
             "properties": {
-                "finished_at": {
+                "finishedAt": {
                     "type": "string"
                 },
-                "host_id": {
+                "hostId": {
                     "type": "string"
                 },
                 "id": {
                     "type": "string"
                 },
-                "quiz_id": {
+                "pin": {
                     "type": "string"
                 },
-                "report_snapshot": {
+                "quizId": {
+                    "type": "string"
+                },
+                "reportSnapshot": {
                     "type": "array",
                     "items": {
                         "type": "integer"
                     }
                 },
-                "started_at": {
-                    "type": "string"
-                }
-            }
-        },
-        "github_com_chrpnnkv_SmartBattle_internal_models.Option": {
-            "type": "object",
-            "properties": {
-                "id": {
+                "startedAt": {
                     "type": "string"
                 },
-                "is_correct": {
-                    "type": "boolean"
-                },
-                "text": {
-                    "type": "string"
-                }
-            }
-        },
-        "github_com_chrpnnkv_SmartBattle_internal_models.Question": {
-            "type": "object",
-            "properties": {
-                "correct_text_answers": {
-                    "type": "array",
-                    "items": {
-                        "type": "integer"
-                    }
-                },
-                "id": {
-                    "type": "string"
-                },
-                "options": {
-                    "type": "array",
-                    "items": {
-                        "$ref": "#/definitions/github_com_chrpnnkv_SmartBattle_internal_models.Option"
-                    }
-                },
-                "score": {
-                    "type": "integer"
-                },
-                "text": {
-                    "type": "string"
-                },
-                "timer_sec": {
-                    "type": "integer"
-                },
-                "type": {
-                    "type": "string"
-                }
-            }
-        },
-        "github_com_chrpnnkv_SmartBattle_internal_models.Quiz": {
-            "type": "object",
-            "properties": {
-                "created_at": {
-                    "type": "string"
-                },
-                "description": {
-                    "type": "string"
-                },
-                "id": {
-                    "type": "string"
-                },
-                "questions": {
-                    "type": "array",
-                    "items": {
-                        "$ref": "#/definitions/github_com_chrpnnkv_SmartBattle_internal_models.Question"
-                    }
-                },
-                "settings": {
-                    "type": "array",
-                    "items": {
-                        "type": "integer"
-                    }
-                },
-                "teacher_id": {
-                    "type": "string"
-                },
-                "title": {
+                "status": {
                     "type": "string"
                 }
             }
@@ -583,18 +533,29 @@ const docTemplate = `{
         "internal_transport_http_handlers.ChangePasswordReq": {
             "type": "object",
             "required": [
-                "new_password",
-                "old_password"
+                "newPassword",
+                "oldPassword"
             ],
             "properties": {
-                "new_password": {
+                "newPassword": {
                     "type": "string",
                     "minLength": 6,
                     "example": "newsecret123"
                 },
-                "old_password": {
+                "oldPassword": {
                     "type": "string",
                     "example": "secret123"
+                }
+            }
+        },
+        "internal_transport_http_handlers.CreateSessionReq": {
+            "type": "object",
+            "required": [
+                "quizId"
+            ],
+            "properties": {
+                "quizId": {
+                    "type": "string"
                 }
             }
         },
@@ -607,6 +568,51 @@ const docTemplate = `{
                 "email": {
                     "type": "string",
                     "example": "teacher@hse.ru"
+                }
+            }
+        },
+        "internal_transport_http_handlers.GameReportDTO": {
+            "type": "object",
+            "properties": {
+                "finishedAt": {
+                    "type": "string"
+                },
+                "hostId": {
+                    "type": "string"
+                },
+                "id": {
+                    "type": "string"
+                },
+                "pin": {
+                    "type": "string"
+                },
+                "quizId": {
+                    "type": "string"
+                },
+                "reportSnapshot": {
+                    "type": "object",
+                    "additionalProperties": true
+                },
+                "startedAt": {
+                    "type": "string"
+                },
+                "status": {
+                    "type": "string"
+                }
+            }
+        },
+        "internal_transport_http_handlers.JoinSessionReq": {
+            "type": "object",
+            "required": [
+                "nickname",
+                "pin"
+            ],
+            "properties": {
+                "nickname": {
+                    "type": "string"
+                },
+                "pin": {
+                    "type": "string"
                 }
             }
         },
@@ -631,12 +637,17 @@ const docTemplate = `{
             "type": "object",
             "required": [
                 "email",
+                "name",
                 "password"
             ],
             "properties": {
                 "email": {
                     "type": "string",
                     "example": "teacher@hse.ru"
+                },
+                "name": {
+                    "type": "string",
+                    "example": "Тимофей"
                 },
                 "password": {
                     "type": "string",
@@ -648,11 +659,11 @@ const docTemplate = `{
         "internal_transport_http_handlers.ResetPasswordReq": {
             "type": "object",
             "required": [
-                "new_password",
+                "newPassword",
                 "token"
             ],
             "properties": {
-                "new_password": {
+                "newPassword": {
                     "type": "string",
                     "minLength": 6,
                     "example": "newsecret123"

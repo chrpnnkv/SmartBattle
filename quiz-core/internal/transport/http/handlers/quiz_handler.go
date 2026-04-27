@@ -1,12 +1,14 @@
 package handlers
 
 import (
+	"encoding/json"
 	"net/http"
 
 	"github.com/chrpnnkv/SmartBattle/internal/models"
 	"github.com/chrpnnkv/SmartBattle/internal/service"
 	"github.com/gin-gonic/gin"
 	"github.com/google/uuid"
+	"gorm.io/datatypes"
 )
 
 type QuizHandler struct {
@@ -17,37 +19,98 @@ func NewQuizHandler(service *service.QuizService) *QuizHandler {
 	return &QuizHandler{service: service}
 }
 
-// @Summary Создание Квиза
-// @Tags Quizzes
-// @Security BearerAuth
-// @Accept json
-// @Produce json
-// @Param request body models.Quiz true "Структура квиза"
-// @Success 201 {object} models.Quiz
-// @Router /api/quizzes [post]
+type OptionInput struct {
+	ID        string `json:"id"`
+	Text      string `json:"text"`
+	IsCorrect bool   `json:"isCorrect"`
+	Color     string `json:"color"`
+}
+
+type QuestionInput struct {
+	ID                 string        `json:"id"`
+	Type               string        `json:"type"`
+	Text               string        `json:"text"`
+	ImageURL           string        `json:"imageUrl"`
+	TimeLimitSeconds   int           `json:"timeLimitSeconds"`
+	Score              int           `json:"score"`
+	Options            []OptionInput `json:"options"`
+	CorrectTextAnswers []string      `json:"correctTextAnswers"`
+}
+
+type QuizInput struct {
+	Title       string                 `json:"title" binding:"required"`
+	Description string                 `json:"description"`
+	Status      string                 `json:"status"`
+	Mode        string                 `json:"mode"`
+	Settings    map[string]interface{} `json:"settings"`
+	Questions   []QuestionInput        `json:"questions"`
+}
+
+func mapQuizInputToModel(input QuizInput, teacherID uuid.UUID) *models.Quiz {
+	quiz := &models.Quiz{
+		TeacherID:   teacherID,
+		Title:       input.Title,
+		Description: input.Description,
+		Status:      input.Status,
+		Mode:        input.Mode,
+	}
+
+	settingsBytes, _ := json.Marshal(input.Settings)
+	quiz.Settings = datatypes.JSON(settingsBytes)
+
+	for i, qIn := range input.Questions {
+		qID, err := uuid.Parse(qIn.ID)
+		if err != nil {
+			qID = uuid.New()
+		}
+
+		correctAnswersBytes, _ := json.Marshal(qIn.CorrectTextAnswers)
+
+		q := models.Question{
+			ID:                 qID,
+			Type:               qIn.Type,
+			Text:               qIn.Text,
+			ImageURL:           qIn.ImageURL,
+			TimerSec:           qIn.TimeLimitSeconds,
+			Score:              qIn.Score,
+			Order:              i,
+			CorrectTextAnswers: datatypes.JSON(correctAnswersBytes),
+		}
+
+		for _, oIn := range qIn.Options {
+			oID, err := uuid.Parse(oIn.ID)
+			if err != nil {
+				oID = uuid.New()
+			}
+			q.Options = append(q.Options, models.Option{
+				ID:        oID,
+				Text:      oIn.Text,
+				IsCorrect: oIn.IsCorrect,
+				Color:     oIn.Color,
+			})
+		}
+		quiz.Questions = append(quiz.Questions, q)
+	}
+	return quiz
+}
+
 func (h *QuizHandler) CreateQuiz(c *gin.Context) {
-	var quiz models.Quiz
-	if err := c.ShouldBindJSON(&quiz); err != nil {
+	var input QuizInput
+	if err := c.ShouldBindJSON(&input); err != nil {
 		c.JSON(http.StatusBadRequest, gin.H{"error": err.Error()})
 		return
 	}
 
 	teacherID, _ := uuid.Parse(c.GetString("user_id"))
-	quiz.TeacherID = teacherID
+	quiz := mapQuizInputToModel(input, teacherID)
 
-	if err := h.service.CreateQuiz(&quiz); err != nil {
+	if err := h.service.CreateQuiz(quiz); err != nil {
 		c.JSON(http.StatusInternalServerError, gin.H{"error": err.Error()})
 		return
 	}
 	c.JSON(http.StatusCreated, quiz)
 }
 
-// @Summary Список квизов преподавателя
-// @Tags Quizzes
-// @Security BearerAuth
-// @Produce json
-// @Success 200 {array} models.Quiz
-// @Router /api/quizzes [get]
 func (h *QuizHandler) GetQuizzes(c *gin.Context) {
 	teacherID, _ := uuid.Parse(c.GetString("user_id"))
 	quizzes, err := h.service.GetTeacherQuizzes(teacherID)
@@ -58,13 +121,6 @@ func (h *QuizHandler) GetQuizzes(c *gin.Context) {
 	c.JSON(http.StatusOK, quizzes)
 }
 
-// @Summary Получить квиз по ID
-// @Tags Quizzes
-// @Security BearerAuth
-// @Produce json
-// @Param id path string true "ID Квиза"
-// @Success 200 {object} models.Quiz
-// @Router /api/quizzes/{id} [get]
 func (h *QuizHandler) GetQuizByID(c *gin.Context) {
 	id, err := uuid.Parse(c.Param("id"))
 	if err != nil {
@@ -80,18 +136,9 @@ func (h *QuizHandler) GetQuizByID(c *gin.Context) {
 	c.JSON(http.StatusOK, quiz)
 }
 
-// @Summary Обновление Квиза
-// @Tags Quizzes
-// @Security BearerAuth
-// @Accept json
-// @Produce json
-// @Param id path string true "ID Квиза"
-// @Param request body models.Quiz true "Новая структура квиза"
-// @Success 200 {object} models.Quiz
-// @Router /api/quizzes/{id} [put]
 func (h *QuizHandler) UpdateQuiz(c *gin.Context) {
-	var quiz models.Quiz
-	if err := c.ShouldBindJSON(&quiz); err != nil {
+	var input QuizInput
+	if err := c.ShouldBindJSON(&input); err != nil {
 		c.JSON(http.StatusBadRequest, gin.H{"error": err.Error()})
 		return
 	}
@@ -101,22 +148,18 @@ func (h *QuizHandler) UpdateQuiz(c *gin.Context) {
 		c.JSON(http.StatusBadRequest, gin.H{"error": "invalid id format"})
 		return
 	}
-	quiz.ID = id
-	quiz.TeacherID, _ = uuid.Parse(c.GetString("user_id"))
 
-	if err := h.service.UpdateQuiz(&quiz); err != nil {
+	teacherID, _ := uuid.Parse(c.GetString("user_id"))
+	quiz := mapQuizInputToModel(input, teacherID)
+	quiz.ID = id
+
+	if err := h.service.UpdateQuiz(quiz); err != nil {
 		c.JSON(http.StatusInternalServerError, gin.H{"error": err.Error()})
 		return
 	}
 	c.JSON(http.StatusOK, quiz)
 }
 
-// @Summary Удалить квиз
-// @Tags Quizzes
-// @Security BearerAuth
-// @Param id path string true "ID Квиза"
-// @Success 204
-// @Router /api/quizzes/{id} [delete]
 func (h *QuizHandler) DeleteQuiz(c *gin.Context) {
 	id, err := uuid.Parse(c.Param("id"))
 	if err != nil {

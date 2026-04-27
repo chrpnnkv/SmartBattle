@@ -2,84 +2,44 @@ basePath: /
 definitions:
   github_com_chrpnnkv_SmartBattle_internal_models.GameSession:
     properties:
-      finished_at:
+      finishedAt:
         type: string
-      host_id:
+      hostId:
         type: string
       id:
         type: string
-      quiz_id:
+      pin:
         type: string
-      report_snapshot:
+      quizId:
+        type: string
+      reportSnapshot:
         items:
           type: integer
         type: array
-      started_at:
+      startedAt:
         type: string
-    type: object
-  github_com_chrpnnkv_SmartBattle_internal_models.Option:
-    properties:
-      id:
-        type: string
-      is_correct:
-        type: boolean
-      text:
-        type: string
-    type: object
-  github_com_chrpnnkv_SmartBattle_internal_models.Question:
-    properties:
-      correct_text_answers:
-        items:
-          type: integer
-        type: array
-      id:
-        type: string
-      options:
-        items:
-          $ref: '#/definitions/github_com_chrpnnkv_SmartBattle_internal_models.Option'
-        type: array
-      score:
-        type: integer
-      text:
-        type: string
-      timer_sec:
-        type: integer
-      type:
-        type: string
-    type: object
-  github_com_chrpnnkv_SmartBattle_internal_models.Quiz:
-    properties:
-      created_at:
-        type: string
-      description:
-        type: string
-      id:
-        type: string
-      questions:
-        items:
-          $ref: '#/definitions/github_com_chrpnnkv_SmartBattle_internal_models.Question'
-        type: array
-      settings:
-        items:
-          type: integer
-        type: array
-      teacher_id:
-        type: string
-      title:
+      status:
         type: string
     type: object
   internal_transport_http_handlers.ChangePasswordReq:
     properties:
-      new_password:
+      newPassword:
         example: newsecret123
         minLength: 6
         type: string
-      old_password:
+      oldPassword:
         example: secret123
         type: string
     required:
-    - new_password
-    - old_password
+    - newPassword
+    - oldPassword
+    type: object
+  internal_transport_http_handlers.CreateSessionReq:
+    properties:
+      quizId:
+        type: string
+    required:
+    - quizId
     type: object
   internal_transport_http_handlers.ForgotPasswordReq:
     properties:
@@ -88,6 +48,36 @@ definitions:
         type: string
     required:
     - email
+    type: object
+  internal_transport_http_handlers.GameReportDTO:
+    properties:
+      finishedAt:
+        type: string
+      hostId:
+        type: string
+      id:
+        type: string
+      pin:
+        type: string
+      quizId:
+        type: string
+      reportSnapshot:
+        additionalProperties: true
+        type: object
+      startedAt:
+        type: string
+      status:
+        type: string
+    type: object
+  internal_transport_http_handlers.JoinSessionReq:
+    properties:
+      nickname:
+        type: string
+      pin:
+        type: string
+    required:
+    - nickname
+    - pin
     type: object
   internal_transport_http_handlers.LoginReq:
     properties:
@@ -106,17 +96,21 @@ definitions:
       email:
         example: teacher@hse.ru
         type: string
+      name:
+        example: Тимофей
+        type: string
       password:
         example: secret123
         minLength: 6
         type: string
     required:
     - email
+    - name
     - password
     type: object
   internal_transport_http_handlers.ResetPasswordReq:
     properties:
-      new_password:
+      newPassword:
         example: newsecret123
         minLength: 6
         type: string
@@ -124,7 +118,7 @@ definitions:
         example: uuid-token-from-log
         type: string
     required:
-    - new_password
+    - newPassword
     - token
     type: object
 host: localhost:8080
@@ -149,106 +143,6 @@ paths:
       summary: Профиль пользователя
       tags:
       - Auth
-  /api/quizzes:
-    get:
-      produces:
-      - application/json
-      responses:
-        "200":
-          description: OK
-          schema:
-            items:
-              $ref: '#/definitions/github_com_chrpnnkv_SmartBattle_internal_models.Quiz'
-            type: array
-      security:
-      - BearerAuth: []
-      summary: Список квизов преподавателя
-      tags:
-      - Quizzes
-    post:
-      consumes:
-      - application/json
-      parameters:
-      - description: Структура квиза
-        in: body
-        name: request
-        required: true
-        schema:
-          $ref: '#/definitions/github_com_chrpnnkv_SmartBattle_internal_models.Quiz'
-      produces:
-      - application/json
-      responses:
-        "201":
-          description: Created
-          schema:
-            $ref: '#/definitions/github_com_chrpnnkv_SmartBattle_internal_models.Quiz'
-      security:
-      - BearerAuth: []
-      summary: Создание Квиза
-      tags:
-      - Quizzes
-  /api/quizzes/{id}:
-    delete:
-      parameters:
-      - description: ID Квиза
-        in: path
-        name: id
-        required: true
-        type: string
-      responses:
-        "204":
-          description: No Content
-      security:
-      - BearerAuth: []
-      summary: Удалить квиз
-      tags:
-      - Quizzes
-    get:
-      parameters:
-      - description: ID Квиза
-        in: path
-        name: id
-        required: true
-        type: string
-      produces:
-      - application/json
-      responses:
-        "200":
-          description: OK
-          schema:
-            $ref: '#/definitions/github_com_chrpnnkv_SmartBattle_internal_models.Quiz'
-      security:
-      - BearerAuth: []
-      summary: Получить квиз по ID
-      tags:
-      - Quizzes
-    put:
-      consumes:
-      - application/json
-      parameters:
-      - description: ID Квиза
-        in: path
-        name: id
-        required: true
-        type: string
-      - description: Новая структура квиза
-        in: body
-        name: request
-        required: true
-        schema:
-          $ref: '#/definitions/github_com_chrpnnkv_SmartBattle_internal_models.Quiz'
-      produces:
-      - application/json
-      responses:
-        "200":
-          description: OK
-          schema:
-            $ref: '#/definitions/github_com_chrpnnkv_SmartBattle_internal_models.Quiz'
-      security:
-      - BearerAuth: []
-      summary: Обновление Квиза
-      tags:
-      - Quizzes
   /api/reports:
     get:
       produces:
@@ -258,11 +152,31 @@ paths:
           description: OK
           schema:
             items:
-              $ref: '#/definitions/github_com_chrpnnkv_SmartBattle_internal_models.GameSession'
+              $ref: '#/definitions/internal_transport_http_handlers.GameReportDTO'
             type: array
       security:
       - BearerAuth: []
       summary: История игр преподавателя
+      tags:
+      - Analytics
+  /api/reports/{id}:
+    get:
+      parameters:
+      - description: ID Сессии
+        in: path
+        name: id
+        required: true
+        type: string
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: OK
+          schema:
+            $ref: '#/definitions/internal_transport_http_handlers.GameReportDTO'
+      security:
+      - BearerAuth: []
+      summary: Детальный отчет по игре
       tags:
       - Analytics
   /api/reports/{id}/export:
@@ -285,6 +199,101 @@ paths:
       summary: Скачать CSV отчет
       tags:
       - Analytics
+  /api/sessions:
+    post:
+      consumes:
+      - application/json
+      parameters:
+      - description: ID квиза
+        in: body
+        name: request
+        required: true
+        schema:
+          $ref: '#/definitions/internal_transport_http_handlers.CreateSessionReq'
+      produces:
+      - application/json
+      responses:
+        "201":
+          description: Created
+          schema:
+            additionalProperties: true
+            type: object
+      security:
+      - BearerAuth: []
+      summary: Создать игровую сессию
+      tags:
+      - Sessions
+  /api/sessions/{id}:
+    get:
+      parameters:
+      - description: ID Сессии
+        in: path
+        name: id
+        required: true
+        type: string
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: OK
+          schema:
+            additionalProperties: true
+            type: object
+      summary: Получить статус сессии
+      tags:
+      - Sessions
+  /api/sessions/{id}/end:
+    post:
+      responses: {}
+      security:
+      - BearerAuth: []
+      summary: Завершить игру
+      tags:
+      - Sessions
+  /api/sessions/{id}/next:
+    post:
+      responses: {}
+      security:
+      - BearerAuth: []
+      summary: Следующий вопрос
+      tags:
+      - Sessions
+  /api/sessions/{id}/start:
+    post:
+      responses: {}
+      security:
+      - BearerAuth: []
+      summary: Начать игру
+      tags:
+      - Sessions
+  /api/sessions/answer:
+    post:
+      responses: {}
+      summary: Отправить ответ (Студент)
+      tags:
+      - Sessions
+  /api/sessions/join:
+    post:
+      consumes:
+      - application/json
+      parameters:
+      - description: PIN код и никнейм
+        in: body
+        name: request
+        required: true
+        schema:
+          $ref: '#/definitions/internal_transport_http_handlers.JoinSessionReq'
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: OK
+          schema:
+            additionalProperties: true
+            type: object
+      summary: Присоединиться к игре (Студент)
+      tags:
+      - Sessions
   /auth/change-password:
     post:
       consumes:

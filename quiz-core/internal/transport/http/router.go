@@ -4,6 +4,7 @@ import (
 	"github.com/chrpnnkv/SmartBattle/internal/config"
 	"github.com/chrpnnkv/SmartBattle/internal/transport/http/handlers"
 	"github.com/chrpnnkv/SmartBattle/internal/transport/middleware"
+	"github.com/gin-contrib/cors"
 	"github.com/gin-gonic/gin"
 
 	_ "github.com/chrpnnkv/SmartBattle/docs"
@@ -16,13 +17,21 @@ func SetupRouter(
 	authH *handlers.AuthHandler,
 	quizH *handlers.QuizHandler,
 	reportH *handlers.ReportHandler,
+	sessionH *handlers.SessionHandler,
 ) *gin.Engine {
 	r := gin.Default()
 
-	r.GET("/health", func(c *gin.Context) { c.JSON(200, gin.H{"status": "ok"}) })
+	configCORS := cors.DefaultConfig()
+	configCORS.AllowAllOrigins = true
+	configCORS.AllowHeaders = []string{"Origin", "Content-Length", "Content-Type", "Authorization", "X-Internal-Secret"}
+	r.Use(cors.New(configCORS))
 
-	// Подключение Swagger UI
+	r.GET("/health", func(c *gin.Context) { c.JSON(200, gin.H{"status": "ok"}) })
 	r.GET("/swagger/*any", ginSwagger.WrapHandler(swaggerFiles.Handler))
+
+	r.POST("/api/sessions/join", sessionH.JoinSession)
+	r.GET("/api/sessions/:id", sessionH.GetSession)
+	r.POST("/api/sessions/answer", sessionH.SubmitAnswer)
 
 	auth := r.Group("/auth")
 	{
@@ -30,7 +39,6 @@ func SetupRouter(
 		auth.POST("/login", authH.Login)
 		auth.POST("/forgot-password", authH.ForgotPassword)
 		auth.POST("/reset-password", authH.ResetPassword)
-
 		auth.POST("/change-password", middleware.AuthGuard(cfg), authH.ChangePassword)
 	}
 
@@ -46,7 +54,13 @@ func SetupRouter(
 		api.DELETE("/quizzes/:id", quizH.DeleteQuiz)
 
 		api.GET("/reports", reportH.GetReports)
+		api.GET("/reports/:id", reportH.GetReportByID)
 		api.GET("/reports/:id/export", reportH.ExportCSV)
+
+		api.POST("/sessions", sessionH.CreateSession)
+		api.POST("/sessions/:id/start", sessionH.StartSession)
+		api.POST("/sessions/:id/next", sessionH.NextQuestion)
+		api.POST("/sessions/:id/end", sessionH.EndSession)
 	}
 
 	internal := r.Group("/internal")

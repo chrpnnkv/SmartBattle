@@ -17,6 +17,7 @@ func NewAuthHandler(service *service.AuthService) *AuthHandler {
 }
 
 type RegisterReq struct {
+	Name     string `json:"name" binding:"required" example:"Тимофей"`
 	Email    string `json:"email" binding:"required,email" example:"teacher@hse.ru"`
 	Password string `json:"password" binding:"required,min=6" example:"secret123"`
 }
@@ -27,8 +28,8 @@ type LoginReq struct {
 }
 
 type ChangePasswordReq struct {
-	OldPassword string `json:"old_password" binding:"required" example:"secret123"`
-	NewPassword string `json:"new_password" binding:"required,min=6" example:"newsecret123"`
+	OldPassword string `json:"oldPassword" binding:"required" example:"secret123"`
+	NewPassword string `json:"newPassword" binding:"required,min=6" example:"newsecret123"`
 }
 
 type ForgotPasswordReq struct {
@@ -37,7 +38,7 @@ type ForgotPasswordReq struct {
 
 type ResetPasswordReq struct {
 	Token       string `json:"token" binding:"required" example:"uuid-token-from-log"`
-	NewPassword string `json:"new_password" binding:"required,min=6" example:"newsecret123"`
+	NewPassword string `json:"newPassword" binding:"required,min=6" example:"newsecret123"`
 }
 
 // @Summary Регистрация нового пользователя
@@ -54,12 +55,25 @@ func (h *AuthHandler) Register(c *gin.Context) {
 		return
 	}
 
-	user, err := h.service.Register(req.Email, req.Password)
+	user, err := h.service.Register(req.Name, req.Email, req.Password)
 	if err != nil {
 		c.JSON(http.StatusBadRequest, gin.H{"error": err.Error()})
 		return
 	}
-	c.JSON(http.StatusCreated, gin.H{"id": user.ID, "email": user.Email})
+
+	_, token, _ := h.service.Login(req.Email, req.Password)
+
+	c.JSON(http.StatusCreated, gin.H{
+		"user": gin.H{
+			"id":    user.ID,
+			"name":  user.Name,
+			"email": user.Email,
+			"role":  user.Role,
+		},
+		"tokens": gin.H{
+			"accessToken": token,
+		},
+	})
 }
 
 // @Summary Вход в систему
@@ -76,12 +90,23 @@ func (h *AuthHandler) Login(c *gin.Context) {
 		return
 	}
 
-	token, err := h.service.Login(req.Email, req.Password)
+	user, token, err := h.service.Login(req.Email, req.Password)
 	if err != nil {
 		c.JSON(http.StatusUnauthorized, gin.H{"error": err.Error()})
 		return
 	}
-	c.JSON(http.StatusOK, gin.H{"token": token})
+
+	c.JSON(http.StatusOK, gin.H{
+		"user": gin.H{
+			"id":    user.ID,
+			"name":  user.Name,
+			"email": user.Email,
+			"role":  user.Role,
+		},
+		"tokens": gin.H{
+			"accessToken": token,
+		},
+	})
 }
 
 // @Summary Профиль пользователя
@@ -91,9 +116,25 @@ func (h *AuthHandler) Login(c *gin.Context) {
 // @Success 200 {object} map[string]interface{}
 // @Router /api/me [get]
 func (h *AuthHandler) GetMe(c *gin.Context) {
-	userID := c.GetString("user_id")
-	role := c.GetString("role")
-	c.JSON(http.StatusOK, gin.H{"id": userID, "role": role})
+	userIDStr := c.GetString("user_id")
+	userID, err := uuid.Parse(userIDStr)
+	if err != nil {
+		c.JSON(http.StatusUnauthorized, gin.H{"error": "invalid user id"})
+		return
+	}
+
+	user, err := h.service.GetUserByID(userID)
+	if err != nil || user == nil {
+		c.JSON(http.StatusNotFound, gin.H{"error": "user not found"})
+		return
+	}
+
+	c.JSON(http.StatusOK, gin.H{
+		"id":    user.ID,
+		"name":  user.Name,
+		"email": user.Email,
+		"role":  user.Role,
+	})
 }
 
 // @Summary Смена пароля

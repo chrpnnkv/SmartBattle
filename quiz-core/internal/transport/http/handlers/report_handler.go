@@ -1,8 +1,10 @@
 package handlers
 
 import (
+	"encoding/json"
 	"fmt"
 	"net/http"
+	"time"
 
 	"github.com/chrpnnkv/SmartBattle/internal/models"
 	"github.com/chrpnnkv/SmartBattle/internal/service"
@@ -16,6 +18,39 @@ type ReportHandler struct {
 
 func NewReportHandler(service *service.ReportService) *ReportHandler {
 	return &ReportHandler{service: service}
+}
+
+// DTO-структура, которую ждет фронтенд
+type GameReportDTO struct {
+	ID             string                 `json:"id"`
+	QuizID         string                 `json:"quizId"`
+	HostID         string                 `json:"hostId"`
+	PIN            string                 `json:"pin"`
+	Status         string                 `json:"status"`
+	StartedAt      time.Time              `json:"startedAt"`
+	FinishedAt     *time.Time             `json:"finishedAt"`
+	ReportSnapshot map[string]interface{} `json:"reportSnapshot"`
+}
+
+func mapToDTO(s models.GameSession) GameReportDTO {
+	dto := GameReportDTO{
+		ID:         s.ID.String(),
+		QuizID:     s.QuizID.String(),
+		HostID:     s.HostID.String(),
+		PIN:        s.PIN,
+		Status:     s.Status,
+		StartedAt:  s.StartedAt,
+		FinishedAt: s.FinishedAt,
+	}
+	// Парсим raw bytes из БД в красивый JSON-объект
+	if len(s.ReportSnapshot) > 0 {
+		var snap map[string]interface{}
+		json.Unmarshal(s.ReportSnapshot, &snap)
+		dto.ReportSnapshot = snap
+	} else {
+		dto.ReportSnapshot = make(map[string]interface{})
+	}
+	return dto
 }
 
 // @Summary INTERNAL: Сохранить результаты игры
@@ -44,16 +79,49 @@ func (h *ReportHandler) SaveInternalReport(c *gin.Context) {
 // @Tags Analytics
 // @Security BearerAuth
 // @Produce json
-// @Success 200 {array} models.GameSession
+// @Success 200 {array} GameReportDTO
 // @Router /api/reports [get]
 func (h *ReportHandler) GetReports(c *gin.Context) {
 	hostID, _ := uuid.Parse(c.GetString("user_id"))
-	reports, err := h.service.GetTeacherReports(hostID)
+	sessions, err := h.service.GetTeacherReports(hostID)
 	if err != nil {
 		c.JSON(http.StatusInternalServerError, gin.H{"error": err.Error()})
 		return
 	}
+
+	var reports []GameReportDTO
+	for _, s := range sessions {
+		reports = append(reports, mapToDTO(s))
+	}
+
+	if reports == nil {
+		reports = []GameReportDTO{} // Возвращаем [] вместо null для фронтенда
+	}
+
 	c.JSON(http.StatusOK, reports)
+}
+
+// @Summary Детальный отчет по игре
+// @Tags Analytics
+// @Security BearerAuth
+// @Produce json
+// @Param id path string true "ID Сессии"
+// @Success 200 {object} GameReportDTO
+// @Router /api/reports/{id} [get]
+func (h *ReportHandler) GetReportByID(c *gin.Context) {
+	id, err := uuid.Parse(c.Param("id"))
+	if err != nil {
+		c.JSON(http.StatusBadRequest, gin.H{"error": "invalid id format"})
+		return
+	}
+
+	session, err := h.service.GetReportByID(id)
+	if err != nil || session == nil {
+		c.JSON(http.StatusNotFound, gin.H{"error": "report not found"})
+		return
+	}
+
+	c.JSON(http.StatusOK, mapToDTO(*session))
 }
 
 // @Summary Скачать CSV отчет

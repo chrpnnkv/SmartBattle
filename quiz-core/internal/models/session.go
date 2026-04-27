@@ -5,13 +5,26 @@ import (
 
 	"github.com/google/uuid"
 	"gorm.io/datatypes"
+	"gorm.io/gorm"
 )
 
 type GameSession struct {
-	ID             uuid.UUID      `gorm:"type:uuid;default:gen_random_uuid();primaryKey" json:"id"`
-	QuizID         uuid.UUID      `gorm:"type:uuid;not null;index" json:"quiz_id"`
-	HostID         uuid.UUID      `gorm:"type:uuid;not null;index" json:"host_id"`
-	StartedAt      time.Time      `gorm:"not null" json:"started_at"`
-	FinishedAt     time.Time      `json:"finished_at"`
-	ReportSnapshot datatypes.JSON `gorm:"type:jsonb;not null" json:"report_snapshot"`
+	ID             uuid.UUID      `gorm:"type:uuid;primaryKey" json:"id"`
+	QuizID         uuid.UUID      `gorm:"type:uuid;not null;index" json:"quizId"`
+	HostID         uuid.UUID      `gorm:"type:uuid;index" json:"hostId"`
+	PIN            string         `gorm:"type:varchar(10);uniqueIndex" json:"pin"`
+	Status         string         `gorm:"type:varchar(50);default:'waiting'" json:"status"`
+	StartedAt      time.Time      `gorm:"autoCreateTime" json:"startedAt"`
+	FinishedAt     *time.Time     `json:"finishedAt"`
+	ReportSnapshot datatypes.JSON `gorm:"type:jsonb" json:"reportSnapshot"`
+}
+
+func (s *GameSession) BeforeCreate(tx *gorm.DB) (err error) {
+	if s.ID == uuid.Nil {
+		s.ID = uuid.New()
+	}
+	if s.Status == "" {
+		s.Status = "waiting"
+	}
+	return
 }

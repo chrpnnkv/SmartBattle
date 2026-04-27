@@ -22,7 +22,11 @@ func NewAuthService(repo *repository.UserRepository, cfg *config.Config) *AuthSe
 	return &AuthService{repo: repo, cfg: cfg}
 }
 
-func (s *AuthService) Register(email, password string) (*models.User, error) {
+func (s *AuthService) GetUserByID(id uuid.UUID) (*models.User, error) {
+	return s.repo.GetByID(id)
+}
+
+func (s *AuthService) Register(name, email, password string) (*models.User, error) {
 	existing, err := s.repo.GetByEmail(email)
 	if err != nil {
 		return nil, err
@@ -37,6 +41,7 @@ func (s *AuthService) Register(email, password string) (*models.User, error) {
 	}
 
 	user := &models.User{
+		Name:         name,
 		Email:        email,
 		PasswordHash: string(hash),
 		Role:         "teacher",
@@ -48,17 +53,17 @@ func (s *AuthService) Register(email, password string) (*models.User, error) {
 	return user, nil
 }
 
-func (s *AuthService) Login(email, password string) (string, error) {
+func (s *AuthService) Login(email, password string) (*models.User, string, error) {
 	user, err := s.repo.GetByEmail(email)
 	if err != nil {
-		return "", err
+		return nil, "", err
 	}
 	if user == nil {
-		return "", errors.New("invalid credentials")
+		return nil, "", errors.New("invalid credentials")
 	}
 
 	if err := bcrypt.CompareHashAndPassword([]byte(user.PasswordHash), []byte(password)); err != nil {
-		return "", errors.New("invalid credentials")
+		return nil, "", errors.New("invalid credentials")
 	}
 
 	token := jwt.NewWithClaims(jwt.SigningMethodHS256, jwt.MapClaims{
@@ -69,10 +74,10 @@ func (s *AuthService) Login(email, password string) (string, error) {
 
 	tokenString, err := token.SignedString([]byte(s.cfg.JWTSecret))
 	if err != nil {
-		return "", err
+		return nil, "", err
 	}
 
-	return tokenString, nil
+	return user, tokenString, nil
 }
 
 func (s *AuthService) ChangePassword(userID uuid.UUID, oldPassword, newPassword string) error {
