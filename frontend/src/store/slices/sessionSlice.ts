@@ -54,6 +54,7 @@ export const createSession = createAsyncThunk(
   'session/create',
   async ({ quizId, mode }: { quizId: string; mode?: string }, { rejectWithValue }) => {
     try {
+      // mode передаётся в Core: ему важно знать, как идёт сессия
       return await api.sessions.createSession(quizId, mode);
     } catch (e: unknown) {
       return rejectWithValue((e as Error).message);
@@ -80,21 +81,6 @@ export const startSession = createAsyncThunk(
 export const endSession = createAsyncThunk(
   'session/end',
   async (sessionId: string) => api.sessions.endSession(sessionId)
-);
-
-export const submitAnswer = createAsyncThunk(
-  'session/submitAnswer',
-  async (
-    args: { sessionId: string; participantId: string; questionId: string; answerId: string; timeSpentMs: number },
-    { rejectWithValue }
-  ) => {
-    try {
-      await api.sessions.submitAnswer(args);
-      return args.answerId;
-    } catch (e: unknown) {
-      return rejectWithValue((e as Error).message);
-    }
-  }
 );
 
 const sessionSlice = createSlice({
@@ -179,11 +165,6 @@ const sessionSlice = createSlice({
       .addCase(joinSession.rejected, (state, action) => {
         state.isLoading = false;
         state.error = action.payload as string;
-      })
-
-      .addCase(submitAnswer.fulfilled, (state, action) => {
-        state.selectedAnswerId = action.payload ?? null;
-        state.answerSubmitted = true;
       });
   },
 });

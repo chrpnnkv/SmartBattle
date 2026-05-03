@@ -1,9 +1,12 @@
 package main
 
 import (
+	"bufio"
 	"context"
 	"errors"
+	"fmt"
 	"log/slog"
+	"net"
 	"net/http"
 	"os"
 	"os/signal"
@@ -45,13 +48,14 @@ func main() {
 	authService := auth.NewService(cfg.JWTSecret)
 
 	roomManager := room.NewManager(room.RoomConfig{
+		RoomCodeLength:         cfg.RoomCodeLength,
 		MaxParticipants:        cfg.MaxParticipants,
 		DefaultQuestionTimeSec: cfg.DefaultQuestionTimeSec,
 	}, logger)
 
 	var coreClient *core.Client
 	if cfg.BackendCoreURL != "" {
-		coreClient = core.New(cfg.BackendCoreURL, cfg.BackendCoreToken, cfg.BackendCoreTimeout, logger)
+		coreClient = core.New(cfg.BackendCoreURL, cfg.BackendCoreInternalSecret, cfg.BackendCoreTimeout, logger)
 	}
 
 	mux := http.NewServeMux()
@@ -112,4 +116,22 @@ type responseWriter struct {
 func (rw *responseWriter) WriteHeader(code int) {
 	rw.status = code
 	rw.ResponseWriter.WriteHeader(code)
+}
+
+// Hijack пробрасывает интерфейс http.Hijacker до базового ResponseWriter.
+// Без этого gorilla/websocket не может перехватить TCP-соединение
+// и upgrade до WebSocket падает с "response does not implement http.Hijacker".
+func (rw *responseWriter) Hijack() (net.Conn, *bufio.ReadWriter, error) {
+	h, ok := rw.ResponseWriter.(http.Hijacker)
+	if !ok {
+		return nil, nil, fmt.Errorf("underlying ResponseWriter does not implement http.Hijacker")
+	}
+	return h.Hijack()
+}
+
+// Flush пробрасывает http.Flusher (используется server-sent events / streaming).
+func (rw *responseWriter) Flush() {
+	if f, ok := rw.ResponseWriter.(http.Flusher); ok {
+		f.Flush()
+	}
 }

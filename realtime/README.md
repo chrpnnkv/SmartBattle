@@ -1,270 +1,90 @@
-# SmartBattle — Backend Real-Time Module
+# realtime
 
-Backend-модуль реального времени для веб-платформы проведения академических квизов «Smart Battle».
+WebSocket gateway for live quiz rooms. Stateless (rooms are in-memory only); persistent state lives in `quiz-core`.
 
-Реализован на **Go 1.22** с использованием протокола **WebSocket** (gorilla/websocket).
+## Stack
 
----
+- Go 1.22, gorilla/websocket, log/slog
+- No DB. Rooms are kept in `room.Manager` (a `map[string]*Room` behind a mutex).
 
-## Архитектура
-
-```
-HTTP :8080                                                
-├── POST /api/rooms      — создание игровой комнаты       
-├── GET  /api/rooms/{code} — информация о комнате         
-├── GET  /health          — healthcheck                   
-└── GET  /ws              — WebSocket endpoint            
-                                                          
-┌──────────┐  ┌──────────┐  ┌──────────┐                 
-│  Client  │  │   Room   │  │ RoomMgr  │                 
-│ (WS conn)│  │(State    │  │(registry)│                 
-│ readPump │  │ Machine) │  │          │                 
-│ writePump│  │Waiting → │  │          │                 
-└──────────┘  │Active →  │  └──────────┘                 
-              │Finished  │                                 
-              └──────────┘                                 
-                    │                                      
-                    ▼                                      
-           ┌─────────────────┐                            
-           │  backend-core   │  POST /api/internal/       
-           │  HTTP client    │       quiz-results         
-           └─────────────────┘                            
+## Layout
 
 ```
-
-### Структура проекта
-
-```
-smartbattle-realtime/
-├── cmd/server/main.go              # Точка входа, graceful shutdown
-├── internal/
-│   ├── config/config.go            # Конфигурация из env
-│   ├── message/types.go            # Протокол WebSocket-сообщений
-│   ├── auth/jwt.go                 # Проверка JWT-токенов
-│   ├── client/client.go            # WS-клиент (read/write pumps)
-│   ├── room/
-│   │   ├── room.go                 # State machine игровой комнаты
-│   │   ├── manager.go              # Реестр комнат (потокобезопасный)
-│   │   ├── broadcast.go            # Рассылка сообщений участникам
-│   │   └── export.go               # Публичные методы для core-клиента
-│   ├── handler/handler.go          # HTTP/WS обработчики
-│   └── core/client.go              # HTTP-клиент для backend-core
-├── pkg/ratelimit/limiter.go        # Rate limiter (token bucket)
-├── internal/auth/jwt_test.go       # Тесты JWT
-├── internal/room/room_test.go      # Тесты Room и Manager
-├── pkg/ratelimit/limiter_test.go   # Тесты Rate Limiter
-├── .env.example
-├── Dockerfile
-└── docker-compose.yml
+cmd/server/           entrypoint
+internal/
+  auth/               JWT verify (HS256, shared secret with quiz-core)
+  client/             WS client wrapper (read/write loops, channel-backed SendMsg)
+  config/             env loader
+  core/               HTTP client to quiz-core (POST /internal/reports etc.)
+  handler/            WS upgrade + REST /api/rooms*
+  message/            wire types (join/answer/question_started/...)
+  room/               Room (state machine, scoring, broadcast) + Manager
+pkg/ratelimit/        token-bucket per WS client
+docs/ws_events.md     wire-protocol reference
 ```
 
----
+## Running
 
-## Протокол WebSocket
-
-### Входящие сообщения (Client → Server)
-
-#### Вход в комнату (обязательно первым сообщением)
-```json
-// Студент
-{"type": "join", "room_code": "ABCD12", "name": "Иван Петров"}
-
-// Преподаватель
-{"type": "join", "room_code": "ABCD12", "token": "<JWT>"}
-```
-
-#### Управление квизом (только преподаватель)
-```json
-{"type": "start_session"}
-{"type": "next_question"}
-{"type": "finish_session"}
-```
-
-#### Ответ студента
-```json
-{"type": "answer", "question_id": "<uuid>", "answer_index": 2}
-```
-
-#### Heartbeat
-```json
-{"type": "ping"}
-```
-
----
-
-### Исходящие сообщения (Server → Client)
-
-#### Подтверждение входа
-```json
-{
-  "type": "joined",
-  "timestamp": "...",
-  "payload": {
-    "room_code": "ABCD12",
-    "role": "student",
-    "name": "Иван",
-    "quiz_title": "Математика",
-    "total_questions": 10
-  }
-}
-```
-
-#### Новый вопрос
-```json
-{
-  "type": "question",
-  "payload": {
-    "question_id": "uuid",
-    "index": 1,
-    "total": 10,
-    "text": "Сколько будет 2+2?",
-    "options": [{"index": 0, "text": "3"}, {"index": 1, "text": "4"}],
-    "time_limit_sec": 30,
-    "started_at": "..."
-  }
-}
-```
-
-#### Результат ответа (студенту)
-```json
-{
-  "type": "answer_result",
-  "payload": {
-    "correct": true,
-    "correct_index": 1,
-    "score": 950,
-    "total_score": 1900
-  }
-}
-```
-
-#### Итоги вопроса (всем)
-```json
-{
-  "type": "question_results",
-  "payload": {
-    "question_id": "uuid",
-    "correct_index": 1,
-    "stats": [{"option_index": 0, "count": 3}, {"option_index": 1, "count": 15}],
-    "leaderboard": [{"rank": 1, "name": "Иван", "score": 950}]
-  }
-}
-```
-
-#### Завершение сессии (всем)
-```json
-{
-  "type": "session_finished",
-  "payload": {
-    "quiz_title": "Математика",
-    "duration_sec": 180,
-    "results": [
-      {"name": "Иван", "score": 4200, "correct_answers": 5, "total_questions": 5}
-    ]
-  }
-}
-```
-
----
-
-## Старт
-
-### 1. Установка зависимостей
+Standalone:
 
 ```bash
-go mod tidy
+cd realtime
+cat > .env <<EOF
+PORT=8081
+HOST=0.0.0.0
+JWT_SECRET=supersecret
+BACKEND_CORE_URL=http://localhost:8080
+BACKEND_CORE_INTERNAL_SECRET=internal_secret_key
+EOF
+go mod download
+go run ./cmd/server
 ```
 
-### 2. Конфигурация
+Inside Docker (recommended): `docker compose up -d realtime` from repo root.
+
+## Env vars
+
+| Var | Default | Notes |
+|---|---|---|
+| `HOST` | `0.0.0.0` | bind address |
+| `PORT` | `8080` | bind port (mapped to host 8081 in compose) |
+| `JWT_SECRET` | required | must match quiz-core |
+| `BACKEND_CORE_URL` | `http://localhost:8081` (sic — set explicitly!) | base URL of quiz-core |
+| `BACKEND_CORE_INTERNAL_SECRET` | — | header value for `X-Internal-Secret` |
+| `BACKEND_CORE_TIMEOUT` | `5s` | HTTP timeout for outbound calls |
+| `MAX_PARTICIPANTS` | `100` | per-room cap |
+| `RATE_LIMIT_MESSAGES` / `RATE_LIMIT_PERIOD` | `10` / `1s` | per-client WS frame limit |
+| `DEFAULT_QUESTION_TIME_SEC` | `30` | fallback when a question has no `timeLimitSeconds` |
+| `ROOM_CODE_LENGTH` | `6` | digits in PINs |
+| `LOG_LEVEL` | `info` | `debug` enables verbose slog |
+
+## Endpoints
+
+WebSocket: `GET /ws` (also `/ws/...`). First frame must be `join`. Full protocol in [`docs/ws_events.md`](docs/ws_events.md).
+
+REST:
+- `POST /api/rooms` — Bearer JWT (teacher). Used by quiz-core to create a room. Returns `{ room_code, quiz_id, quiz_title, quiz_mode, host_id, status, ws_url }`.
+- `GET /api/rooms` — `{ active_rooms: N }` (diagnostic).
+- `GET /api/rooms/:code` — room status snapshot.
+- `GET /api/rooms/:code/participants` — `{ participants: [...], current_question_index }`. quiz-core uses this in `BuildSessionDTO`.
+- `GET /health` — `{ status: "ok", active_rooms, timestamp }`.
+
+## Tests
 
 ```bash
-cp .env.example .env
-# Обязательно задайте JWT_SECRET
-```
-
-### 3. Запуск
-
-```bash
-JWT_SECRET=your_secret go run ./cmd/server
-```
-
-### 4. Запуск через Docker
-
-```bash
-docker build -t smartbattle-realtime .
-docker run -p 8080:8080 -e JWT_SECRET=your_secret smartbattle-realtime
-```
-
-### 5. Docker Compose (с заглушкой backend-core)
-
-```bash
-JWT_SECRET=your_secret docker compose --profile dev up
-```
-
----
-
-## Сценарий использования
-
-```
-1. Преподаватель создаёт комнату:
-   POST /api/rooms
-   Authorization: Bearer <teacher_jwt>
-   Body: {"quiz_id":"...", "quiz_title":"...", "questions":[...]}
-   → {"room_code": "ABCD12", ...}
-
-2. Преподаватель подключается по WS:
-   ws://host/ws
-   → {"type":"join","room_code":"ABCD12","token":"<jwt>"}
-
-3. Студенты подключаются по WS:
-   → {"type":"join","room_code":"ABCD12","name":"Иван"}
-
-4. Преподаватель запускает:
-   → {"type":"start_session"}
-
-5. Студенты отвечают:
-   → {"type":"answer","question_id":"...","answer_index":1}
-
-6. Преподаватель переключает вопросы:
-   → {"type":"next_question"}
-
-7. Преподаватель завершает:
-   → {"type":"finish_session"}
-   ← Всем: session_finished + результаты → backend-core
-```
-
----
-
-## Тестирование
-
-```bash
-# Все тесты
 go test ./...
-
-# С verbose выводом
-go test -v ./...
-
-# Конкретный пакет
-go test -v ./internal/auth/...
-go test -v ./internal/room/...
-go test -v ./pkg/ratelimit/...
-
-# С покрытием
-go test -cover ./...
 ```
 
----
+- `internal/auth/jwt_test.go` — token verify happy/expired/wrong-secret.
+- `internal/room/room_test.go` — initial state, manager CRUD.
+- `internal/room/score_test.go` — `calcScore` formula across timing edge cases.
+- `pkg/ratelimit/limiter_test.go` — token bucket allow/refill.
 
-## Переменные окружения
+## Notable design choices
 
-| Переменная              | По умолчанию        | Описание                             |
-|-------------------------|---------------------|--------------------------------------|
-| `JWT_SECRET`            | **обязательно**     | Секрет для проверки JWT              |
-| `PORT`                  | `8080`              | Порт сервера                         |
-| `BACKEND_CORE_URL`      | `http://localhost:8081` | URL backend-core                 |
-| `MAX_PARTICIPANTS`      | `100`               | Макс. студентов в комнате            |
-| `DEFAULT_QUESTION_TIME_SEC` | `30`           | Время на ответ по умолчанию (сек)    |
-| `RATE_LIMIT_MESSAGES`   | `10`                | Макс. сообщений в период             |
-| `RATE_LIMIT_PERIOD`     | `1s`                | Период rate limit                    |
-| `LOG_LEVEL`             | `info`              | Уровень логирования (debug/info)     |
-
+- `Room` carries one `sync.RWMutex`. All mutating methods are split into `*` (acquires lock) + `*Locked` (assumes lock held). Anything that touches `Room.Participants`, `Status`, `CurrentQuestionIndex` or `QuestionReports` must run inside the write lock.
+- `client.SendMsg` is non-blocking — it pushes to a buffered channel; the per-client write goroutine drains it. This lets `broadcastLocked` send to N participants while still holding the room lock.
+- Per-question reports are accumulated in `Room.QuestionReports` and shipped to quiz-core in the finish payload, populating `GameReport.questionReports` on the FE.
+- Session results are POSTed to quiz-core with **3 attempts and exponential backoff** (1s/2s/4s) — see `core.SaveResultsPayloadWithRetry`.
+- WS upgrade requires the response writer to satisfy `http.Hijacker`. The logging middleware in `cmd/server/main.go` wraps it but explicitly forwards `Hijack()` and `Flush()` — without that the `gorilla/websocket` upgrade fails with `response does not implement http.Hijacker`.
+- Healthcheck in `docker-compose.yml` uses `wget` from busybox; the Dockerfile uses `alpine:3.20` rather than `scratch` so the healthcheck command is available.

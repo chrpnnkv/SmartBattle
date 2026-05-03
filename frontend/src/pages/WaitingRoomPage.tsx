@@ -3,7 +3,7 @@ import { useParams, useLocation, useNavigate } from 'react-router-dom';
 import { useAppDispatch, useAppSelector } from '../hooks/redux';
 import { participantJoined, participantLeft, questionStarted } from '../store/slices/sessionSlice';
 import { wsService } from '../api/wsService';
-import type { WsParticipantJoinedPayload, WsQuestionStartedPayload } from '../types';
+import type { WsParticipantJoinedPayload, WsQuestionStartedPayload, WsJoinedPayload } from '../types';
 import Logo from '../components/ui/Logo/Logo';
 import styles from './WaitingRoomPage.module.css';
 
@@ -24,6 +24,9 @@ export default function WaitingRoomPage() {
   const stateData = location.state as { participantId?: string; quizTitle?: string } | null;
 
   const [participants, setParticipants] = useState<{ id: string; nickname: string }[]>([]);
+  // Авторитетный счётчик от сервера. Сервер шлёт totalCount в joined/participant_joined/participant_left,
+  // и он не страдает от пропуска одного броадкаста, в отличие от participants.length.
+  const [serverCount, setServerCount] = useState<number | null>(null);
   const [wsError, setWsError] = useState<string | null>(null);
   const wsConnected = useRef(false);
 
@@ -59,7 +62,21 @@ export default function WaitingRoomPage() {
       setWsError(payload.message);
     });
 
-    wsService.on<{ quiz_title: string; total_questions: number }>('joined', (_payload) => {});
+    // Сидируем список участников из снимка, который реалтайм отдаёт в joined.
+    // Это даёт корректный счётчик при подключении/переподключении сразу,
+    // а не только после новых participant_joined.
+    wsService.on<WsJoinedPayload>('joined', (payload) => {
+      if (!payload) return;
+      if (payload.participants && payload.participants.length > 0) {
+        const onlyStudents = payload.participants
+          .filter((p) => p.nickname && p.nickname !== '')
+          .map((p) => ({ id: p.id, nickname: p.nickname }));
+        setParticipants(onlyStudents);
+      }
+      if (typeof payload.totalCount === 'number') {
+        setServerCount(payload.totalCount);
+      }
+    });
 
     wsService.on<WsParticipantJoinedPayload>('participant_joined', (payload) => {
       dispatch(participantJoined(payload.participant));
@@ -68,11 +85,17 @@ export default function WaitingRoomPage() {
         if (exists) return prev;
         return [...prev, { id: payload.participant.id, nickname: payload.participant.nickname }];
       });
+      if (typeof payload.totalCount === 'number') {
+        setServerCount(payload.totalCount);
+      }
     });
 
-    wsService.on<{ participant_id: string }>('participant_left', (payload) => {
+    wsService.on<{ participant_id: string; totalCount?: number }>('participant_left', (payload) => {
       dispatch(participantLeft(payload.participant_id));
       setParticipants((prev) => prev.filter((p) => p.id !== payload.participant_id));
+      if (typeof payload.totalCount === 'number') {
+        setServerCount(payload.totalCount);
+      }
     });
 
     wsService.on<WsQuestionStartedPayload>('question_started', (payload) => {
@@ -131,10 +154,14 @@ export default function WaitingRoomPage() {
       wsService.disconnect();
       wsConnected.current = false;
     };
-  }, [sessionId, dispatch, navigate, stateData]);
+    // eslint-disable-next-line react-hooks/exhaustive-deps -- WS поднимаем один раз
+    // на жизнь сессии, не реагируем на пересоздание location.state и dispatch.
+  }, [sessionId]);
 
   const quizTitle = stateData?.quizTitle ?? 'Квиз';
-  const count = participants.length;
+  // Берём максимум: серверный totalCount авторитетен, но если в участниках уже больше
+  // (например, дошёл лишний broadcast) — показываем то, что реально знаем.
+  const count = Math.max(serverCount ?? 0, participants.length);
   const shown = participants.slice(0, 7);
   const extra = Math.max(0, count - 7);
 

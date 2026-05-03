@@ -1,7 +1,6 @@
 import { useEffect, useRef, useState, useCallback } from 'react';
 import { useParams, useLocation, useNavigate } from 'react-router-dom';
 import { wsService } from '../api/wsService';
-import { api } from '../api';
 import type { Question, WsQuestionStartedPayload, WsQuestionEndedPayload } from '../types';
 import styles from './QuestionPage.module.css';
 
@@ -452,13 +451,27 @@ export default function QuestionPage() {
       setLastAnswerCorrect(result.correct);
     });
 
-    wsService.on('session_finished', () => {
+    wsService.on<{
+      quiz_title?: string;
+      duration_sec?: number;
+      results?: { name: string; score: number; correct_answers: number; total_questions: number }[];
+    }>('session_finished', (payload) => {
+      // Передаём финальный leaderboard, чтобы /finished показал реальный рейтинг,
+      // а не пустоту из mock localStorage.
+      const finalResults = (payload?.results ?? []).map((r) => ({
+        name: r.name,
+        score: r.score,
+        correctAnswers: r.correct_answers,
+        totalQuestions: r.total_questions,
+      }));
       navigate(`/session/${sessionId}/finished`, {
         state: {
           participantId,
           score: scoreRef.current > 0 ? scoreRef.current : Number(sessionStorage.getItem('sb_score') ?? 0),
           correctAnswers: correctRef.current > 0 ? correctRef.current : Number(sessionStorage.getItem('sb_correct') ?? 0),
           totalAnswered: totalRef.current || Number(sessionStorage.getItem('sb_total') ?? 0),
+          quizTitle: payload?.quiz_title ?? '',
+          finalResults,
         },
       });
     });
@@ -522,14 +535,8 @@ export default function QuestionPage() {
     answeredThisQuestionRef.current = true;
     setLastAnswerCorrect(isCorrect);
     notifyAnswered();
+    // Канонический канал — WS. Realtime сам сохранит ответ и пришлёт answer_result.
     wsService.send('answer', { question_id: currentQuestion.id, answer_id: optionId });
-    api.sessions.submitAnswer({
-      sessionId: sessionId!,
-      participantId,
-      questionId: currentQuestion.id,
-      answerId: optionId,
-      timeSpentMs: timeSpent,
-    }).catch(() => {  });
 
     setSubmitted(true);
 
@@ -551,13 +558,6 @@ export default function QuestionPage() {
     setLastAnswerCorrect(allCorrect);
     notifyAnswered();
     wsService.send('answer', { question_id: currentQuestion.id, answer_id: selectedIds.join(',') });
-    api.sessions.submitAnswer({
-      sessionId: sessionId!,
-      participantId,
-      questionId: currentQuestion.id,
-      answerId: selectedIds.join(','),
-      timeSpentMs: timeSpent,
-    }).catch(() => {  });
     setSubmitted(true);
 
     if (isStudentPaced) {
@@ -579,13 +579,6 @@ export default function QuestionPage() {
     answeredThisQuestionRef.current = true;
     notifyAnswered();
     wsService.send('answer', { question_id: currentQuestion.id, answer_id: text });
-    api.sessions.submitAnswer({
-      sessionId: sessionId!,
-      participantId,
-      questionId: currentQuestion.id,
-      answerId: text,
-      timeSpentMs: timeSpent,
-    }).catch(() => {  });
     setSubmitted(true);
 
     if (isStudentPaced) {

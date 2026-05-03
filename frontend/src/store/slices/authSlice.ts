@@ -1,18 +1,30 @@
 import { createSlice, createAsyncThunk, PayloadAction } from '@reduxjs/toolkit';
 import { api } from '../../api';
-import type { User, LoginRequest, RegisterRequest } from '../../types';
+import type { User, LoginRequest, RegisterRequest, ChangePasswordRequest } from '../../types';
 
 interface AuthState {
   user: User | null;
   token: string | null;
   isLoading: boolean;
   error: string | null;
-  isInitialized: boolean; 
+  isInitialized: boolean;
+}
+
+// Безопасное чтение токена при инициализации стора. localStorage может быть недоступен
+// в test-окружении (jsdom при определённых конфигурациях), в Safari Private Mode или в SSR.
+// Без этого guard'a сам импорт authSlice падает в любом окружении без window.localStorage.
+function readInitialToken(): string | null {
+  try {
+    if (typeof localStorage === 'undefined') return null;
+    return localStorage.getItem('accessToken');
+  } catch {
+    return null;
+  }
 }
 
 const initialState: AuthState = {
   user: null,
-  token: localStorage.getItem('accessToken'),
+  token: readInitialToken(),
   isLoading: false,
   error: null,
   isInitialized: false,
@@ -47,6 +59,23 @@ export const register = createAsyncThunk(
     } catch (e: unknown) {
       const err = e as Error;
       return rejectWithValue(err.message);
+    }
+  }
+);
+
+// При смене пароля бэкенд отдаёт свежий токен. Сохраняем его и в localStorage,
+// и в Redux — иначе клиент продолжит ходить со старым JWT, который тикает к истечению.
+export const changePassword = createAsyncThunk(
+  'auth/changePassword',
+  async (data: ChangePasswordRequest, { rejectWithValue }) => {
+    try {
+      const res = await api.auth.changePassword(data);
+      if (res?.tokens?.accessToken) {
+        localStorage.setItem('accessToken', res.tokens.accessToken);
+      }
+      return res;
+    } catch (e: unknown) {
+      return rejectWithValue((e as Error)?.message ?? 'Не удалось сменить пароль');
     }
   }
 );
@@ -109,6 +138,15 @@ const authSlice = createSlice({
       .addCase(register.rejected, (state, action) => {
         state.isLoading = false;
         state.error = action.payload as string;
+      });
+
+    // Смена пароля → ротация токена.
+    builder
+      .addCase(changePassword.fulfilled, (state, action) => {
+        if (action.payload?.user) state.user = action.payload.user;
+        if (action.payload?.tokens?.accessToken) {
+          state.token = action.payload.tokens.accessToken;
+        }
       });
   },
 });

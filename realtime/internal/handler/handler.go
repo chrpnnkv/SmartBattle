@@ -99,26 +99,35 @@ func (h *Handler) handleWebSocket(w http.ResponseWriter, r *http.Request) {
 	if joinMsg.Token != "" {
 		claims, err := h.authService.Verify(joinMsg.Token)
 		if err != nil {
+			h.logger.Warn("WS join: невалидный токен", "client_id", c.ID, "error", err)
 			writeErrorAndClose(conn, message.ErrCodeInvalidToken, "недействительный токен")
 			return
 		}
 		userID = claims.UserID
 		role = claims.Role
 		if role == message.RoleTeacher && name == "" {
-			name = claims.Email
+			// Сначала пробуем email из JWT, затем — fallback по UserID,
+			// чтобы старые токены без email-claim не валили подключение.
+			if claims.Email != "" {
+				name = claims.Email
+			} else {
+				name = "Преподаватель"
+			}
 		}
 	}
 
 	if name == "" {
+		h.logger.Warn("WS join: пустое имя", "client_id", c.ID, "role", role)
 		writeErrorAndClose(conn, message.ErrCodeInvalidMessage, "поле name обязательно")
 		return
 	}
 	if len(name) > 50 {
+		h.logger.Warn("WS join: имя слишком длинное", "client_id", c.ID, "len", len(name))
 		writeErrorAndClose(conn, message.ErrCodeInvalidMessage, "имя слишком длинное (макс. 50 символов)")
 		return
 	}
 
-	roomCode := strings.ToUpper(strings.TrimSpace(joinMsg.RoomCode))
+	roomCode := strings.ToUpper(strings.ReplaceAll(joinMsg.RoomCode, " ", ""))
 
 	var rm *room.Room
 	var found bool
@@ -126,16 +135,24 @@ func (h *Handler) handleWebSocket(w http.ResponseWriter, r *http.Request) {
 	if role == message.RoleTeacher {
 		rm, found = h.rooms.Get(roomCode)
 		if !found {
+			h.logger.Warn("WS join: комната не найдена (teacher)", "client_id", c.ID, "room_code", roomCode)
 			writeErrorAndClose(conn, message.ErrCodeRoomNotFound, "комната не найдена: "+roomCode)
+			return
+		}
+		if rm.IsFinished() {
+			h.logger.Warn("WS join: сессия уже завершена (teacher)", "client_id", c.ID, "room_code", roomCode)
+			writeErrorAndClose(conn, message.ErrCodeSessionNotActive, "сессия уже завершена")
 			return
 		}
 	} else {
 		rm, found = h.rooms.Get(roomCode)
 		if !found {
+			h.logger.Warn("WS join: комната не найдена (student)", "client_id", c.ID, "room_code", roomCode)
 			writeErrorAndClose(conn, message.ErrCodeRoomNotFound, "комната не найдена: "+roomCode)
 			return
 		}
 		if rm.IsFinished() {
+			h.logger.Warn("WS join: сессия уже завершена", "client_id", c.ID, "room_code", roomCode)
 			writeErrorAndClose(conn, message.ErrCodeSessionNotActive, "сессия уже завершена")
 			return
 		}
@@ -146,8 +163,21 @@ func (h *Handler) handleWebSocket(w http.ResponseWriter, r *http.Request) {
 	c.RoomCode = roomCode
 	c.UserID = userID
 
-	if err := rm.AddClient(c, c.ID); err != nil {
-		writeErrorAndClose(conn, message.ErrCodeRoomFull, err.Error())
+	// Стабильный participantID (выданный backend-core при /api/sessions/join).
+	// Если не передан — fallback на сгенерированный client.ID.
+	stableParticipantID := strings.TrimSpace(joinMsg.ParticipantID)
+	if stableParticipantID == "" {
+		stableParticipantID = c.ID
+	}
+
+	if err := rm.AddClient(c, stableParticipantID); err != nil {
+		// Различаем "комната заполнена" и "сессия уже завершена" — у них разные коды.
+		errCode := message.ErrCodeRoomFull
+		if rm.IsFinished() {
+			errCode = message.ErrCodeSessionNotActive
+		}
+		h.logger.Warn("WS join: AddClient failed", "client_id", c.ID, "room_code", roomCode, "code", errCode, "error", err)
+		writeErrorAndClose(conn, errCode, err.Error())
 		return
 	}
 
@@ -166,16 +196,23 @@ func (h *Handler) handleWebSocket(w http.ResponseWriter, r *http.Request) {
 		h.logger.Info("клиент отключился", "client_id", cl.ID, "name", cl.Name)
 	}
 
+	// Снимок текущих участников — даём новому клиенту полную картину лобби,
+	// чтобы счётчик «N студентов подключилось» был корректным сразу,
+	// а не только после новых join-ов.
+	participantsSnapshot := rm.GetParticipants()
+
 	c.SendMsg(message.New(message.TypeJoined, message.JoinedPayload{
 		RoomCode:       roomCode,
 		Role:           role,
 		Name:           name,
 		QuizTitle:      rm.QuizTitle,
 		TotalQuestions: len(rm.Questions),
+		Participants:   participantsSnapshot,
+		TotalCount:     len(participantsSnapshot),
 	}))
 
 	if role == message.RoleStudent {
-		rm.BroadcastParticipantJoined(c, c.ID)
+		rm.BroadcastParticipantJoined(c, stableParticipantID)
 	}
 	c.Start()
 
@@ -191,16 +228,27 @@ func (h *Handler) handleWebSocket(w http.ResponseWriter, r *http.Request) {
 type CreateRoomRequest struct {
 	QuizID    string            `json:"quiz_id"`
 	QuizTitle string            `json:"quiz_title"`
+	QuizMode  string            `json:"quiz_mode"`
 	Questions []QuestionRequest `json:"questions"`
+}
+
+// OptionRequest — вариант ответа в запросе создания комнаты.
+type OptionRequest struct {
+	ID        string `json:"id"`
+	Text      string `json:"text"`
+	IsCorrect bool   `json:"is_correct"`
+	Color     string `json:"color"`
 }
 
 // QuestionRequest — вопрос в запросе создания комнаты.
 type QuestionRequest struct {
-	ID           string   `json:"id"`
-	Text         string   `json:"text"`
-	Options      []string `json:"options"`
-	CorrectIndex int      `json:"correct_index"`
-	TimeLimitSec int      `json:"time_limit_sec"`
+	ID           string          `json:"id"`
+	Type         string          `json:"type,omitempty"`
+	Text         string          `json:"text"`
+	ImageURL     string          `json:"image_url,omitempty"`
+	Score        int             `json:"score,omitempty"`
+	Options      []OptionRequest `json:"options"`
+	TimeLimitSec int             `json:"time_limit_sec"`
 }
 
 // handleRooms обрабатывает /api/rooms.
@@ -237,19 +285,36 @@ func (h *Handler) createRoom(w http.ResponseWriter, r *http.Request) {
 	questions := make([]room.Question, len(req.Questions))
 	for i, q := range req.Questions {
 		opts := make([]room.QuestionOption, len(q.Options))
-		for j, text := range q.Options {
-			opts[j] = room.QuestionOption{
-				ID:        fmt.Sprintf("%s_o%d", q.ID, j),
-				Text:      text,
-				IsCorrect: j == q.CorrectIndex,
-				Color:     room.OptionColors[j%len(room.OptionColors)],
+		for j, opt := range q.Options {
+			id := opt.ID
+			if id == "" {
+				id = fmt.Sprintf("%s_o%d", q.ID, j)
 			}
+			color := opt.Color
+			if color == "" {
+				color = room.OptionColors[j%len(room.OptionColors)]
+			}
+			opts[j] = room.QuestionOption{
+				ID:        id,
+				Text:      opt.Text,
+				IsCorrect: opt.IsCorrect,
+				Color:     color,
+			}
+		}
+		qType := q.Type
+		if qType == "" {
+			qType = "multiple_choice"
 		}
 		questions[i] = room.Question{
 			ID:           q.ID,
+			QuizID:       req.QuizID,
+			Type:         qType,
 			Text:         q.Text,
+			ImageURL:     q.ImageURL,
+			Score:        q.Score,
 			Options:      opts,
 			TimeLimitSec: q.TimeLimitSec,
+			Order:        i,
 		}
 	}
 
@@ -258,6 +323,11 @@ func (h *Handler) createRoom(w http.ResponseWriter, r *http.Request) {
 		writeJSON(w, http.StatusInternalServerError, map[string]string{"error": err.Error()})
 		return
 	}
+	if req.QuizMode != "" {
+		rm.Mode = req.QuizMode
+	}
+	// Запоминаем UserID учителя из JWT — нужно для последующего host_id в room info
+	rm.TeacherUserID = claims.UserID
 
 	rm.SetOnFinish(func(r *room.Room) {
 		if h.coreClient != nil {
@@ -278,6 +348,8 @@ func (h *Handler) createRoom(w http.ResponseWriter, r *http.Request) {
 		"room_code":  rm.Code,
 		"quiz_id":    rm.QuizID,
 		"quiz_title": rm.QuizTitle,
+		"quiz_mode":  rm.Mode,
+		"host_id":    rm.TeacherUserID,
 		"status":     string(rm.GetStatus()),
 		"ws_url":     "/ws",
 	})
@@ -290,14 +362,19 @@ func (h *Handler) listRooms(w http.ResponseWriter, _ *http.Request) {
 	})
 }
 
-// handleRoomByCode обрабатывает /api/rooms/{code}.
+// handleRoomByCode обрабатывает /api/rooms/{code} и /api/rooms/{code}/participants.
 func (h *Handler) handleRoomByCode(w http.ResponseWriter, r *http.Request) {
-	code := strings.TrimPrefix(r.URL.Path, "/api/rooms/")
-	code = strings.ToUpper(strings.TrimSpace(code))
-
-	if code == "" {
+	rest := strings.TrimPrefix(r.URL.Path, "/api/rooms/")
+	if rest == "" {
 		http.NotFound(w, r)
 		return
+	}
+
+	parts := strings.SplitN(rest, "/", 2)
+	code := strings.ToUpper(strings.ReplaceAll(parts[0], " ", ""))
+	subpath := ""
+	if len(parts) == 2 {
+		subpath = parts[1]
 	}
 
 	rm, ok := h.rooms.Get(code)
@@ -306,13 +383,26 @@ func (h *Handler) handleRoomByCode(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	writeJSON(w, http.StatusOK, map[string]interface{}{
-		"room_code":       rm.Code,
-		"quiz_title":      rm.QuizTitle,
-		"status":          string(rm.GetStatus()),
-		"participants":    rm.StudentCount(),
-		"total_questions": len(rm.Questions),
-	})
+	switch subpath {
+	case "":
+		writeJSON(w, http.StatusOK, map[string]interface{}{
+			"room_code":       rm.Code,
+			"quiz_id":         rm.QuizID,
+			"quiz_title":      rm.QuizTitle,
+			"quiz_mode":       rm.Mode,
+			"host_id":         rm.TeacherUserID,
+			"status":          string(rm.GetStatus()),
+			"participants":    rm.StudentCount(),
+			"total_questions": len(rm.Questions),
+		})
+	case "participants":
+		writeJSON(w, http.StatusOK, map[string]interface{}{
+			"participants":           rm.GetParticipants(),
+			"current_question_index": rm.CurrentIndex(),
+		})
+	default:
+		http.NotFound(w, r)
+	}
 }
 
 // handleHealth возвращает статус сервиса.
@@ -340,5 +430,11 @@ func writeErrorAndClose(conn *websocket.Conn, code, msg string) {
 	errMsg := message.NewError(code, msg)
 	data, _ := json.Marshal(errMsg)
 	_ = conn.WriteMessage(websocket.TextMessage, data)
+
+	// Шлём корректный WS close frame, чтобы клиент получил wasClean=true
+	// и не перезатёр серверную ошибку своим "[disconnected] Соединение прервано".
+	closeFrame := websocket.FormatCloseMessage(websocket.CloseNormalClosure, msg)
+	_ = conn.WriteControl(websocket.CloseMessage, closeFrame, time.Now().Add(time.Second))
+
 	conn.Close()
 }

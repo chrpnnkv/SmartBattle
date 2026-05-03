@@ -66,13 +66,14 @@ const (
 
 // IncomingMessage — универсальный контейнер входящего WS-сообщения.
 type IncomingMessage struct {
-	Type        string `json:"type"`
-	RoomCode    string `json:"room_code,omitempty"`
-	Name        string `json:"name,omitempty"`
-	Token       string `json:"token,omitempty"`
-	QuestionID  string `json:"question_id,omitempty"`
-	AnswerIndex int    `json:"answer_index"`
-	AnswerID    string `json:"answer_id,omitempty"` // ID варианта ответа (фронтенд-совместимый)
+	Type          string `json:"type"`
+	RoomCode      string `json:"room_code,omitempty"`
+	Name          string `json:"name,omitempty"`
+	Token         string `json:"token,omitempty"`
+	ParticipantID string `json:"participant_id,omitempty"` // стабильный UUID участника, выданный backend-core
+	QuestionID    string `json:"question_id,omitempty"`
+	AnswerIndex   int    `json:"answer_index"`
+	AnswerID      string `json:"answer_id,omitempty"` // ID варианта ответа (фронтенд-совместимый)
 }
 
 // OutgoingMessage — базовая обёртка исходящего сообщения.
@@ -83,12 +84,16 @@ type OutgoingMessage struct {
 }
 
 // JoinedPayload — ответ сервера на успешный join.
+// Включает текущий состав комнаты, чтобы только что подключившийся клиент
+// сразу знал, кто уже в лобби (без отдельного запроса/события).
 type JoinedPayload struct {
-	RoomCode       string `json:"room_code"`
-	Role           string `json:"role"`
-	Name           string `json:"name"`
-	QuizTitle      string `json:"quiz_title"`
-	TotalQuestions int    `json:"total_questions"`
+	RoomCode       string               `json:"room_code"`
+	Role           string               `json:"role"`
+	Name           string               `json:"name"`
+	QuizTitle      string               `json:"quiz_title"`
+	TotalQuestions int                  `json:"total_questions"`
+	Participants   []SessionParticipant `json:"participants"`
+	TotalCount     int                  `json:"totalCount"`
 }
 
 // SessionParticipant — участник сессии (совместим с фронтендом SessionParticipant).
@@ -134,6 +139,7 @@ type QuestionData struct {
 	QuizID           string             `json:"quizId"`
 	Type             string             `json:"type"`
 	Text             string             `json:"text"`
+	ImageURL         string             `json:"imageUrl,omitempty"`
 	Options          []AnswerOptionData `json:"options"`
 	TimeLimitSeconds int                `json:"timeLimitSeconds"`
 	Order            int                `json:"order"`
@@ -142,7 +148,7 @@ type QuestionData struct {
 // QuestionStartedPayload — payload события question_started (совместим с фронтендом WsQuestionStartedPayload).
 type QuestionStartedPayload struct {
 	Question       QuestionData `json:"question"`
-	QuestionIndex  int          `json:"questionIndex"`  // 0-based
+	QuestionIndex  int          `json:"questionIndex"` // 0-based
 	TotalQuestions int          `json:"totalQuestions"`
 	StartedAt      int64        `json:"startedAt"` // epoch ms
 }
@@ -179,14 +185,14 @@ type ParticipantShort struct {
 
 // QuestionReport — отчёт по вопросу (совместим с фронтендом QuestionReport).
 type QuestionReport struct {
-	QuestionID                string               `json:"questionId"`
-	QuestionText              string               `json:"questionText"`
-	CorrectPercent            int                  `json:"correctPercent"`
-	AvgResponseTimeMs         int                  `json:"avgResponseTimeMs"`
-	MostCommonWrongOptionID   string               `json:"mostCommonWrongOptionId,omitempty"`
-	MostCommonWrongOptionText string               `json:"mostCommonWrongOptionText,omitempty"`
-	Distribution              []AnswerDistribution `json:"distribution"`
-	FastestCorrectParticipants []ParticipantShort  `json:"fastestCorrectParticipants"`
+	QuestionID                 string               `json:"questionId"`
+	QuestionText               string               `json:"questionText"`
+	CorrectPercent             int                  `json:"correctPercent"`
+	AvgResponseTimeMs          int                  `json:"avgResponseTimeMs"`
+	MostCommonWrongOptionID    string               `json:"mostCommonWrongOptionId,omitempty"`
+	MostCommonWrongOptionText  string               `json:"mostCommonWrongOptionText,omitempty"`
+	Distribution               []AnswerDistribution `json:"distribution"`
+	FastestCorrectParticipants []ParticipantShort   `json:"fastestCorrectParticipants"`
 }
 
 // QuestionEndedPayload — payload события question_ended (совместим с фронтендом WsQuestionEndedPayload).

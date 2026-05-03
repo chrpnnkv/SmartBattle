@@ -1,106 +1,86 @@
-# Smart Battle - Frontend
+# frontend
 
-Веб-приложение для проведения академических квизов в реальном времени. Преподаватель создаёт квиз и управляет сессией, студенты подключаются по PIN-коду и отвечают на вопросы
+React/Vite SPA for SmartBattle. Two main personas:
 
-## Стек
+- **Teacher** — registers, builds quizzes, runs live sessions, views reports.
+- **Student** — joins anonymously by PIN, plays the quiz, sees their final rank.
 
-- **React 18** + **TypeScript**
-- **Redux Toolkit** - управление состоянием
-- **React Router v6** - маршрутизация
-- **CSS Modules** - стилизация
-- **Vite** - сборщик
-- **WebSocket** - real-time взаимодействие
+## Stack
 
-## Запуск локально
+- React 18, TypeScript, Vite
+- Redux Toolkit (auth/quiz/session slices)
+- React Router v6
+- CSS Modules
+- Vitest + jsdom for tests
 
-### Требования
-
-- Node.js 18+
-- npm 9+
-
-### Установка и запуск
-
-```bash
-# Установить зависимости
-npm install
-
-# Создать файл окружения
-cp .env.example .env
-
-# Запустить в режиме разработки
-npm run dev
-```
-
-Приложение будет доступно на `http://localhost:5173`.
-
-По умолчанию используется mock API
-
-### Сборка
-
-```bash
-npm run build
-```
-
-## Переменные окружения
-
-Создайте файл `.env` на основе `.env.example`:
-
-| Переменная | Описание | По умолчанию |
-|---|---|---|
-| `VITE_USE_MOCK` | Использовать mock API | `true` |
-| `VITE_API_URL` | URL бэкенда | `http://localhost:8080` |
-| `VITE_WS_URL` | URL WebSocket | `ws://localhost:8080` |
-
-## Структура проекта
+## Layout
 
 ```
 src/
-├── api/
-│   ├── IApiService.ts        # Абстрактный интерфейс API
-│   ├── mock/                 # Mock реализация (localStorage)
-│   ├── real/                 # Реальный HTTP клиент
-│   ├── wsService.ts          # WebSocket сервис (mock + real)
-│   └── index.ts              # Переключатель mock/real
-├── components/
-│   ├── layout/               # AppLayout, AuthLayout
-│   └── ui/                   # Button, Input, Modal, Badge...
-├── pages/                    # Страницы приложения
-├── store/
-│   └── slices/               # authSlice, quizSlice, sessionSlice
-├── types/                    # TypeScript типы
-└── router/                   # AppRouter, ProtectedRoute
+  api/
+    IApiService.ts          interface — auth/quizzes/sessions/analytics
+    real/realApiService.ts  HTTP impl with 401-redirect handler
+    mock/mockApiService.ts  in-memory impl for solo UI work
+    wsService.ts            singleton WS client (+ MockWebSocketService)
+    index.ts                picks impl by VITE_USE_MOCK
+  components/
+    layout/                 AppLayout, AuthLayout
+    ui/                     Button, Input, Modal, Badge, Logo, ActivityChart
+  pages/                    one file per route
+  store/
+    slices/                 auth, quiz, session
+    index.ts                store config
+  router/AppRouter.tsx      route table + ProtectedRoute / PublicOnlyRoute
+  types/index.ts            shared TS types (mirror server wire shapes)
+  test/setup.ts             vitest setup
+docs/                       core_integration.md, ws_integration.md
 ```
 
-## Подключение бэкенда
+## Running
 
-1. Установить в `.env`:
-   ```
-   VITE_USE_MOCK=false
-   VITE_API_URL=http://адрес-бэка:порт
-   VITE_WS_URL=ws://адрес-бэка:порт
-   ```
+Recommended (real backend in Docker, FE in Vite dev server):
 
-## Роли и страницы
+```bash
+docker compose up -d postgres quiz-core realtime
+cd frontend
+cp .env.example .env.local      # then set VITE_USE_MOCK=false
+npm install
+npm run dev                     # http://localhost:5173
+```
 
-### Преподаватель
-| Страница | Путь |
-|---|---|
-| Вход / Регистрация | `/login`, `/register` |
-| Личный кабинет | `/dashboard` |
-| Конструктор квизов | `/quiz/new`, `/quiz/:id/edit` |
-| Проведение квиза | `/session/:id/analytics` |
-| Отчёты | `/reports` |
+Production-style build inside Docker:
 
-### Студент
-| Страница | Путь |
-|---|---|
-| Главная | `/` |
-| Вход по PIN | `/join` |
-| Комната ожидания | `/session/:id/waiting` |
-| Вопрос | `/session/:id/question` |
-| Результаты | `/session/:id/finished` |
+```bash
+docker compose up -d frontend   # http://localhost:3000 (nginx)
+```
 
-## Режимы проведения квиза
+## Env vars
 
-- **Teacher-paced** - преподаватель вручную переключает вопросы
-- **Student-paced** - переход к следующему вопросу автоматически, когда все ответили или истекло время
+| Var | Default in `.env.example` | Notes |
+|---|---|---|
+| `VITE_API_BASE_URL` | `http://localhost:8080` | quiz-core base URL |
+| `VITE_WS_URL` | `ws://localhost:8081` | realtime base URL |
+| `VITE_USE_MOCK` | `true` | **Set to `false` in `.env.local`** to talk to the real backend. Vite reads env at startup — restart the dev server after changing this. |
+
+## Tests
+
+```bash
+npm run test
+```
+
+Files (4):
+
+- `src/__tests__/JoinPage.test.tsx` — student join form rendering + validation.
+- `src/__tests__/wsService.test.ts` — `RealWebSocketService` join handshake, send shape, message routing, disconnect cleanup.
+- `src/__tests__/sessionSlice.test.ts` — reducers (resetSession, participantJoined, questionStarted/Ended, leaderboard, etc.).
+- `src/__tests__/authSlice.test.ts` — token rotation on `changePassword.fulfilled`, logout clears state + localStorage.
+
+## How it talks to the backends
+
+- REST: `realApiService` for everything in `IAuthApi` / `IQuizApi` / `ISessionApi` / `IAnalyticsApi`. See [`docs/core_integration.md`](docs/core_integration.md).
+- WebSocket: `wsService` (singleton) for the live game. See [`docs/ws_integration.md`](docs/ws_integration.md).
+- 401 recovery is global: `realApiService.handleUnauthorized` clears the token, dispatches a `sb:unauthorized` event (App.tsx → `dispatch(logout())`), and `window.location.replace('/login?reason=expired')`.
+
+## Mock vs real
+
+`VITE_USE_MOCK=true` swaps the API and WS singletons for in-memory mocks that work offline. `mockApiService` keeps fake users/quizzes/sessions in `localStorage`; `MockWebSocketService` simulates events via `localStorage` "signals" so a teacher window and a student window in the **same browser profile** can play together. Cross-profile or incognito sharing requires real mode.

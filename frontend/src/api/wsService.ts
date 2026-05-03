@@ -207,6 +207,7 @@ class MockWebSocketService implements IWebSocketService {
         score: Math.round((participants.length - i) * 800 + Math.random() * 400),
         answeredCount: 1,
       })),
+      endedAt: Date.now(),
     };
   }
 
@@ -220,23 +221,29 @@ export class RealWebSocketService implements IWebSocketService {
   private handlers: Map<string, WsEventHandler> = new Map();
   private pingTimer: ReturnType<typeof setInterval> | null = null;
   private connecting = false;
+  // true, если сервер уже сообщил конкретную ошибку — не перезатираем её
+  // generic-сообщением из onclose ("Соединение прервано").
+  private serverErrorSeen = false;
   private readonly WS_URL = import.meta.env.VITE_WS_URL ?? 'ws://localhost:8081';
 
   connect(sessionId: string, options?: WsConnectOptions): void {
     if (this.connecting) return;
     if (this.socket) this.disconnect();
     this.connecting = true;
+    this.serverErrorSeen = false;
     const url = `${this.WS_URL}/ws`;
     this.socket = new WebSocket(url);
 
     this.socket.onopen = () => {
       this.connecting = false;
-      this.socket!.send(JSON.stringify({
+      const joinMsg: Record<string, string> = {
         type: 'join',
         room_code: options?.roomCode ?? sessionId,
         name: options?.name ?? '',
-        token: options?.token ?? '',
-      }));
+      };
+      if (options?.token) joinMsg.token = options.token;
+      if (options?.participantId) joinMsg.participant_id = options.participantId;
+      this.socket!.send(JSON.stringify(joinMsg));
       this.pingTimer = setInterval(() => {
         if (this.socket?.readyState === WebSocket.OPEN) {
           this.socket.send(JSON.stringify({ type: 'ping' }));
@@ -247,6 +254,7 @@ export class RealWebSocketService implements IWebSocketService {
     this.socket.onmessage = (e: MessageEvent<string>) => {
       try {
         const msg = JSON.parse(e.data) as { type: string; payload?: unknown };
+        if (msg.type === 'error') this.serverErrorSeen = true;
         this.handlers.get(msg.type)?.(msg.payload ?? null);
       } catch {
 
@@ -255,12 +263,15 @@ export class RealWebSocketService implements IWebSocketService {
 
     this.socket.onerror = () => {
       this.connecting = false;
-      this.handlers.get('error')?.({ code: 'connection_error', message: 'Ошибка соединения с сервером' });
+      if (!this.serverErrorSeen) {
+        this.handlers.get('error')?.({ code: 'connection_error', message: 'Ошибка соединения с сервером' });
+      }
     };
     this.socket.onclose = (e: CloseEvent) => {
       this.connecting = false;
       if (this.pingTimer) { clearInterval(this.pingTimer); this.pingTimer = null; }
-      if (!e.wasClean) {
+      // Не перезатираем уже показанную пользователю серверную ошибку.
+      if (!e.wasClean && !this.serverErrorSeen) {
         this.handlers.get('error')?.({ code: 'disconnected', message: 'Соединение прервано' });
       }
     };

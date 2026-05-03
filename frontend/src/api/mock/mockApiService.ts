@@ -20,7 +20,6 @@ import type {
   UpdateQuizRequest,
   RegisterRequest,
   ResetPasswordRequest,
-  SubmitAnswerRequest,
   User,
 } from '../../types';
 
@@ -230,9 +229,9 @@ const MOCK_REPORTS: GameReport[] = [
       },
     ],
     leaderboard: [
-      { id: 'p1', nickname: 'Иван Р', avatarInitials: 'ИР', avatarColor: '#7c3aed', score: 9200, answeredCount: 15, rank: 1 },
-      { id: 'p2', nickname: 'София К', avatarInitials: 'СК', avatarColor: '#2563eb', score: 8900, answeredCount: 15, rank: 2 },
-      { id: 'p3', nickname: 'Мария Л', avatarInitials: 'МЛ', avatarColor: '#16a34a', score: 8400, answeredCount: 14, rank: 3 },
+      { id: 'p1', nickname: 'Иван Р', avatarInitials: 'ИР', avatarColor: '#7c3aed', score: 9200, answeredCount: 15, correctAnswers: 15, totalQuestions: 15, rank: 1 },
+      { id: 'p2', nickname: 'София К', avatarInitials: 'СК', avatarColor: '#2563eb', score: 8900, answeredCount: 15, correctAnswers: 15, totalQuestions: 15, rank: 2 },
+      { id: 'p3', nickname: 'Мария Л', avatarInitials: 'МЛ', avatarColor: '#16a34a', score: 8400, answeredCount: 14, correctAnswers: 14, totalQuestions: 15, rank: 3 },
     ],
   },
 ];
@@ -288,8 +287,14 @@ const authApi: IAuthApi = {
     const user: User = { ...MOCK_USER, id: uid(), email: data.email, name: data.name };
     return { user, tokens: { accessToken: 'mock-token-' + uid() } };
   },
-  async changePassword(_data: ChangePasswordRequest) {
+  async changePassword(_data: ChangePasswordRequest): Promise<AuthResponse & { message?: string }> {
     await delay();
+    // В моке всё равно отдаём свежий "токен", чтобы FE-флоу не ветвился по режиму.
+    return {
+      user: { ...MOCK_USER },
+      tokens: { accessToken: 'mock-token-' + uid() },
+      message: 'password changed successfully',
+    };
   },
   async forgotPassword(_data: ForgotPasswordRequest) {
     await delay();
@@ -430,20 +435,10 @@ const sessionsApi: ISessionApi = {
     await delay(300);
     updateSession(sessionId, (s) => ({ ...s, status: 'question_active' }));
   },
-  async nextQuestion(sessionId: string) {
-    await delay(300);
-    updateSession(sessionId, (s) => ({ ...s, currentQuestionIndex: s.currentQuestionIndex + 1 }));
-  },
   async endSession(sessionId: string) {
     await delay(300);
     updateSession(sessionId, (s) => ({ ...s, status: 'finished' }));
     writeSignal({ event: 'session_finished', payload: {}, sessionId, ts: Date.now() });
-  },
-  async submitAnswer(data: SubmitAnswerRequest) {
-    await delay(200);
-    
-    
-    return;
   },
 };
 

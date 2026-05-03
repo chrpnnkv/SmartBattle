@@ -34,9 +34,9 @@ type Config struct {
 	RateLimitPeriod   time.Duration
 
 	// Backend-core
-	BackendCoreURL     string
-	BackendCoreTimeout time.Duration
-	BackendCoreToken   string
+	BackendCoreURL            string
+	BackendCoreTimeout        time.Duration
+	BackendCoreInternalSecret string
 
 	// Таймер вопроса по умолчанию
 	DefaultQuestionTimeSec int
@@ -50,22 +50,22 @@ func Load() (*Config, error) {
 	_ = godotenv.Load()
 
 	cfg := &Config{
-		Host:                   getEnv("HOST", "0.0.0.0"),
-		Port:                   getEnv("PORT", "8080"),
-		JWTSecret:              getEnv("JWT_SECRET", ""),
-		WSReadLimit:            int64(getEnvInt("WS_READ_LIMIT", 4096)),
-		WSWriteWait:            getEnvDuration("WS_WRITE_WAIT", 10*time.Second),
-		WSPongWait:             getEnvDuration("WS_PONG_WAIT", 60*time.Second),
-		WSMaxMessageSize:       int64(getEnvInt("WS_MAX_MESSAGE_SIZE", 4096)),
-		RoomCodeLength:         getEnvInt("ROOM_CODE_LENGTH", 6),
-		MaxParticipants:        getEnvInt("MAX_PARTICIPANTS", 100),
-		RateLimitMessages:      getEnvInt("RATE_LIMIT_MESSAGES", 10),
-		RateLimitPeriod:        getEnvDuration("RATE_LIMIT_PERIOD", time.Second),
-		BackendCoreURL:         getEnv("BACKEND_CORE_URL", "http://localhost:8081"),
-		BackendCoreTimeout:     getEnvDuration("BACKEND_CORE_TIMEOUT", 5*time.Second),
-		BackendCoreToken:       getEnv("BACKEND_CORE_TOKEN", ""),
-		DefaultQuestionTimeSec: getEnvInt("DEFAULT_QUESTION_TIME_SEC", 30),
-		LogLevel:               getEnv("LOG_LEVEL", "info"),
+		Host:                      getEnv("HOST", "0.0.0.0"),
+		Port:                      getEnv("PORT", "8080"),
+		JWTSecret:                 getEnv("JWT_SECRET", ""),
+		WSReadLimit:               int64(getEnvInt("WS_READ_LIMIT", 4096)),
+		WSWriteWait:               getEnvDuration("WS_WRITE_WAIT", 10*time.Second),
+		WSPongWait:                getEnvDuration("WS_PONG_WAIT", 60*time.Second),
+		WSMaxMessageSize:          int64(getEnvInt("WS_MAX_MESSAGE_SIZE", 4096)),
+		RoomCodeLength:            getEnvInt("ROOM_CODE_LENGTH", 6),
+		MaxParticipants:           getEnvInt("MAX_PARTICIPANTS", 100),
+		RateLimitMessages:         getEnvInt("RATE_LIMIT_MESSAGES", 10),
+		RateLimitPeriod:           getEnvDuration("RATE_LIMIT_PERIOD", time.Second),
+		BackendCoreURL:            getEnv("BACKEND_CORE_URL", "http://localhost:8081"),
+		BackendCoreTimeout:        getEnvDuration("BACKEND_CORE_TIMEOUT", 5*time.Second),
+		BackendCoreInternalSecret: getEnv("BACKEND_CORE_INTERNAL_SECRET", getEnv("BACKEND_CORE_TOKEN", "")),
+		DefaultQuestionTimeSec:    getEnvInt("DEFAULT_QUESTION_TIME_SEC", 30),
+		LogLevel:                  getEnv("LOG_LEVEL", "info"),
 	}
 
 	cfg.WSPingPeriod = (cfg.WSPongWait * 9) / 10

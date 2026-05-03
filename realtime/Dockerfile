@@ -17,14 +17,15 @@ RUN CGO_ENABLED=0 GOOS=linux GOARCH=amd64 \
     go build -ldflags="-s -w" -o /smartbattle-realtime ./cmd/server
 
 # ── Финальный образ ─────────────────────────────────────────
-FROM scratch
+# Минимальная alpine вместо scratch: нужен /bin/sh и wget для healthcheck.
+FROM alpine:3.20
 
-# Копируем корневые сертификаты для HTTPS-запросов к backend-core
-COPY --from=builder /etc/ssl/certs/ca-certificates.crt /etc/ssl/certs/
+RUN apk add --no-cache ca-certificates && \
+    addgroup -S app && adduser -S app -G app
 
-# Копируем бинарник
-COPY --from=builder /smartbattle-realtime /smartbattle-realtime
+COPY --from=builder /smartbattle-realtime /usr/local/bin/smartbattle-realtime
 
+USER app
 EXPOSE 8080
 
-ENTRYPOINT ["/smartbattle-realtime"]
+ENTRYPOINT ["/usr/local/bin/smartbattle-realtime"]
