@@ -1,0 +1,439 @@
+basePath: /
+definitions:
+  github_com_chrpnnkv_SmartBattle_internal_models.GameSession:
+    properties:
+      finishedAt:
+        type: string
+      hostId:
+        type: string
+      id:
+        type: string
+      pin:
+        type: string
+      quizId:
+        type: string
+      reportSnapshot:
+        items:
+          type: integer
+        type: array
+      startedAt:
+        type: string
+      status:
+        type: string
+    type: object
+  internal_transport_http_handlers.ChangePasswordReq:
+    properties:
+      newPassword:
+        example: newsecret123
+        minLength: 6
+        type: string
+      oldPassword:
+        example: secret123
+        type: string
+    required:
+    - newPassword
+    - oldPassword
+    type: object
+  internal_transport_http_handlers.CreateSessionReq:
+    properties:
+      quizId:
+        type: string
+    required:
+    - quizId
+    type: object
+  internal_transport_http_handlers.ForgotPasswordReq:
+    properties:
+      email:
+        example: teacher@hse.ru
+        type: string
+    required:
+    - email
+    type: object
+  internal_transport_http_handlers.GameReportDTO:
+    properties:
+      finishedAt:
+        type: string
+      hostId:
+        type: string
+      id:
+        type: string
+      pin:
+        type: string
+      quizId:
+        type: string
+      reportSnapshot:
+        additionalProperties: true
+        type: object
+      startedAt:
+        type: string
+      status:
+        type: string
+    type: object
+  internal_transport_http_handlers.JoinSessionReq:
+    properties:
+      nickname:
+        type: string
+      pin:
+        type: string
+    required:
+    - nickname
+    - pin
+    type: object
+  internal_transport_http_handlers.LoginReq:
+    properties:
+      email:
+        example: teacher@hse.ru
+        type: string
+      password:
+        example: secret123
+        type: string
+    required:
+    - email
+    - password
+    type: object
+  internal_transport_http_handlers.RegisterReq:
+    properties:
+      email:
+        example: teacher@hse.ru
+        type: string
+      name:
+        example: Тимофей
+        type: string
+      password:
+        example: secret123
+        minLength: 6
+        type: string
+    required:
+    - email
+    - name
+    - password
+    type: object
+  internal_transport_http_handlers.ResetPasswordReq:
+    properties:
+      newPassword:
+        example: newsecret123
+        minLength: 6
+        type: string
+      token:
+        example: uuid-token-from-log
+        type: string
+    required:
+    - newPassword
+    - token
+    type: object
+host: localhost:8080
+info:
+  contact: {}
+  description: Backend Core для платформы академических квизов
+  title: Smart Battle API
+  version: "1.0"
+paths:
+  /api/me:
+    get:
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: OK
+          schema:
+            additionalProperties: true
+            type: object
+      security:
+      - BearerAuth: []
+      summary: Профиль пользователя
+      tags:
+      - Auth
+  /api/reports:
+    get:
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: OK
+          schema:
+            items:
+              $ref: '#/definitions/internal_transport_http_handlers.GameReportDTO'
+            type: array
+      security:
+      - BearerAuth: []
+      summary: История игр преподавателя
+      tags:
+      - Analytics
+  /api/reports/{id}:
+    get:
+      parameters:
+      - description: ID Сессии
+        in: path
+        name: id
+        required: true
+        type: string
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: OK
+          schema:
+            $ref: '#/definitions/internal_transport_http_handlers.GameReportDTO'
+      security:
+      - BearerAuth: []
+      summary: Детальный отчет по игре
+      tags:
+      - Analytics
+  /api/reports/{id}/export:
+    get:
+      parameters:
+      - description: ID Сессии
+        in: path
+        name: id
+        required: true
+        type: string
+      produces:
+      - text/csv
+      responses:
+        "200":
+          description: report.csv
+          schema:
+            type: file
+      security:
+      - BearerAuth: []
+      summary: Скачать CSV отчет
+      tags:
+      - Analytics
+  /api/sessions:
+    post:
+      consumes:
+      - application/json
+      parameters:
+      - description: ID квиза
+        in: body
+        name: request
+        required: true
+        schema:
+          $ref: '#/definitions/internal_transport_http_handlers.CreateSessionReq'
+      produces:
+      - application/json
+      responses:
+        "201":
+          description: Created
+          schema:
+            additionalProperties: true
+            type: object
+      security:
+      - BearerAuth: []
+      summary: Создать игровую сессию
+      tags:
+      - Sessions
+  /api/sessions/{id}:
+    get:
+      parameters:
+      - description: ID Сессии
+        in: path
+        name: id
+        required: true
+        type: string
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: OK
+          schema:
+            additionalProperties: true
+            type: object
+      summary: Получить статус сессии
+      tags:
+      - Sessions
+  /api/sessions/{id}/end:
+    post:
+      responses: {}
+      security:
+      - BearerAuth: []
+      summary: Завершить игру
+      tags:
+      - Sessions
+  /api/sessions/{id}/next:
+    post:
+      responses: {}
+      security:
+      - BearerAuth: []
+      summary: Следующий вопрос
+      tags:
+      - Sessions
+  /api/sessions/{id}/start:
+    post:
+      responses: {}
+      security:
+      - BearerAuth: []
+      summary: Начать игру
+      tags:
+      - Sessions
+  /api/sessions/answer:
+    post:
+      responses: {}
+      summary: Отправить ответ (Студент)
+      tags:
+      - Sessions
+  /api/sessions/join:
+    post:
+      consumes:
+      - application/json
+      parameters:
+      - description: PIN код и никнейм
+        in: body
+        name: request
+        required: true
+        schema:
+          $ref: '#/definitions/internal_transport_http_handlers.JoinSessionReq'
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: OK
+          schema:
+            additionalProperties: true
+            type: object
+      summary: Присоединиться к игре (Студент)
+      tags:
+      - Sessions
+  /auth/change-password:
+    post:
+      consumes:
+      - application/json
+      parameters:
+      - description: Данные для смены пароля
+        in: body
+        name: request
+        required: true
+        schema:
+          $ref: '#/definitions/internal_transport_http_handlers.ChangePasswordReq'
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: OK
+          schema:
+            additionalProperties: true
+            type: object
+      security:
+      - BearerAuth: []
+      summary: Смена пароля
+      tags:
+      - Auth
+  /auth/forgot-password:
+    post:
+      consumes:
+      - application/json
+      parameters:
+      - description: Email пользователя
+        in: body
+        name: request
+        required: true
+        schema:
+          $ref: '#/definitions/internal_transport_http_handlers.ForgotPasswordReq'
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: OK
+          schema:
+            additionalProperties: true
+            type: object
+      summary: Запрос на сброс пароля
+      tags:
+      - Auth
+  /auth/login:
+    post:
+      consumes:
+      - application/json
+      parameters:
+      - description: Учетные данные
+        in: body
+        name: request
+        required: true
+        schema:
+          $ref: '#/definitions/internal_transport_http_handlers.LoginReq'
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: OK
+          schema:
+            additionalProperties: true
+            type: object
+      summary: Вход в систему
+      tags:
+      - Auth
+  /auth/register:
+    post:
+      consumes:
+      - application/json
+      parameters:
+      - description: Данные регистрации
+        in: body
+        name: request
+        required: true
+        schema:
+          $ref: '#/definitions/internal_transport_http_handlers.RegisterReq'
+      produces:
+      - application/json
+      responses:
+        "201":
+          description: Created
+          schema:
+            additionalProperties: true
+            type: object
+      summary: Регистрация нового пользователя
+      tags:
+      - Auth
+  /auth/reset-password:
+    post:
+      consumes:
+      - application/json
+      parameters:
+      - description: Токен и новый пароль
+        in: body
+        name: request
+        required: true
+        schema:
+          $ref: '#/definitions/internal_transport_http_handlers.ResetPasswordReq'
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: OK
+          schema:
+            additionalProperties: true
+            type: object
+      summary: Установка нового пароля по токену
+      tags:
+      - Auth
+  /internal/reports:
+    post:
+      consumes:
+      - application/json
+      parameters:
+      - description: Снапшот сессии
+        in: body
+        name: request
+        required: true
+        schema:
+          $ref: '#/definitions/github_com_chrpnnkv_SmartBattle_internal_models.GameSession'
+      produces:
+      - application/json
+      responses:
+        "201":
+          description: Created
+      security:
+      - InternalSecretAuth: []
+      summary: 'INTERNAL: Сохранить результаты игры'
+      tags:
+      - Internal
+securityDefinitions:
+  BearerAuth:
+    in: header
+    name: Authorization
+    type: apiKey
+  InternalSecretAuth:
+    in: header
+    name: X-Internal-Secret
+    type: apiKey
+swagger: "2.0"
