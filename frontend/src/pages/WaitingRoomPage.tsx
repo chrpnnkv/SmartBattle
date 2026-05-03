@@ -24,8 +24,6 @@ export default function WaitingRoomPage() {
   const stateData = location.state as { participantId?: string; quizTitle?: string } | null;
 
   const [participants, setParticipants] = useState<{ id: string; nickname: string }[]>([]);
-  // Авторитетный счётчик от сервера. Сервер шлёт totalCount в joined/participant_joined/participant_left,
-  // и он не страдает от пропуска одного броадкаста, в отличие от participants.length.
   const [serverCount, setServerCount] = useState<number | null>(null);
   const [wsError, setWsError] = useState<string | null>(null);
   const wsConnected = useRef(false);
@@ -62,9 +60,6 @@ export default function WaitingRoomPage() {
       setWsError(payload.message);
     });
 
-    // Сидируем список участников из снимка, который реалтайм отдаёт в joined.
-    // Это даёт корректный счётчик при подключении/переподключении сразу,
-    // а не только после новых participant_joined.
     wsService.on<WsJoinedPayload>('joined', (payload) => {
       if (!payload) return;
       if (payload.participants && payload.participants.length > 0) {
@@ -154,13 +149,9 @@ export default function WaitingRoomPage() {
       wsService.disconnect();
       wsConnected.current = false;
     };
-    // eslint-disable-next-line react-hooks/exhaustive-deps -- WS поднимаем один раз
-    // на жизнь сессии, не реагируем на пересоздание location.state и dispatch.
   }, [sessionId]);
 
   const quizTitle = stateData?.quizTitle ?? 'Квиз';
-  // Берём максимум: серверный totalCount авторитетен, но если в участниках уже больше
-  // (например, дошёл лишний broadcast) — показываем то, что реально знаем.
   const count = Math.max(serverCount ?? 0, participants.length);
   const shown = participants.slice(0, 7);
   const extra = Math.max(0, count - 7);

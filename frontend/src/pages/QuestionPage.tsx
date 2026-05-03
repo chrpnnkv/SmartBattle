@@ -456,8 +456,6 @@ export default function QuestionPage() {
       duration_sec?: number;
       results?: { name: string; score: number; correct_answers: number; total_questions: number }[];
     }>('session_finished', (payload) => {
-      // Передаём финальный leaderboard, чтобы /finished показал реальный рейтинг,
-      // а не пустоту из mock localStorage.
       const finalResults = (payload?.results ?? []).map((r) => ({
         name: r.name,
         score: r.score,
@@ -535,7 +533,6 @@ export default function QuestionPage() {
     answeredThisQuestionRef.current = true;
     setLastAnswerCorrect(isCorrect);
     notifyAnswered();
-    // Канонический канал — WS. Realtime сам сохранит ответ и пришлёт answer_result.
     wsService.send('answer', { question_id: currentQuestion.id, answer_id: optionId });
 
     setSubmitted(true);

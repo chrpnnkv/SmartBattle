@@ -24,8 +24,6 @@ import type {
 
 const BASE_URL = import.meta.env.VITE_API_BASE_URL ?? 'http://localhost:8080';
 
-// Эндпоинты, которые НЕ должны триггерить редирект на /login при 401
-// (логин/регистрация/публичные ресурсы).
 const NO_REDIRECT_ON_401 = [
   '/auth/login',
   '/auth/register',
@@ -35,21 +33,16 @@ const NO_REDIRECT_ON_401 = [
   '/api/public/quizzes',
 ];
 
-// Простой in-memory флаг, чтобы не делать множественные редиректы при 401-шторме.
 let redirecting = false;
 
 function handleUnauthorized(path: string) {
   if (redirecting) return;
   if (NO_REDIRECT_ON_401.some((p) => path.startsWith(p))) return;
-  // Сессия протухла или токен потерян — чистим и отправляем на логин.
   redirecting = true;
   try {
     localStorage.removeItem('accessToken');
   } catch {
-    // ignore
   }
-  // Сообщаем Redux/слайсам синхронно, чтобы UI не показывал устаревшие данные
-  // даже если location.replace отложится (например, в активной вкладке).
   if (typeof window !== 'undefined') {
     window.dispatchEvent(new CustomEvent('sb:unauthorized'));
     if (window.location.pathname !== '/login') {

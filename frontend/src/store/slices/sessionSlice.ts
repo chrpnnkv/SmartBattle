@@ -54,7 +54,6 @@ export const createSession = createAsyncThunk(
   'session/create',
   async ({ quizId, mode }: { quizId: string; mode?: string }, { rejectWithValue }) => {
     try {
-      // mode передаётся в Core: ему важно знать, как идёт сессия
       return await api.sessions.createSession(quizId, mode);
     } catch (e: unknown) {
       return rejectWithValue((e as Error).message);

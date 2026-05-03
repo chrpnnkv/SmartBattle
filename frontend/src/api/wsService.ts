@@ -221,8 +221,6 @@ export class RealWebSocketService implements IWebSocketService {
   private handlers: Map<string, WsEventHandler> = new Map();
   private pingTimer: ReturnType<typeof setInterval> | null = null;
   private connecting = false;
-  // true, если сервер уже сообщил конкретную ошибку — не перезатираем её
-  // generic-сообщением из onclose ("Соединение прервано").
   private serverErrorSeen = false;
   private readonly WS_URL = import.meta.env.VITE_WS_URL ?? 'ws://localhost:8081';
 
@@ -270,7 +268,6 @@ export class RealWebSocketService implements IWebSocketService {
     this.socket.onclose = (e: CloseEvent) => {
       this.connecting = false;
       if (this.pingTimer) { clearInterval(this.pingTimer); this.pingTimer = null; }
-      // Не перезатираем уже показанную пользователю серверную ошибку.
       if (!e.wasClean && !this.serverErrorSeen) {
         this.handlers.get('error')?.({ code: 'disconnected', message: 'Соединение прервано' });
       }

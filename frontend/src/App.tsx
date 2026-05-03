@@ -12,9 +12,6 @@ export default function App() {
     dispatch(initAuth());
   }, [dispatch]);
 
-  // Глобальный листенер для 401 от realApiService.
-  // Когда токен протух/потерян, мы хотим, чтобы Redux тоже знал об этом
-  // (иначе ProtectedRoute будет держать пользователя на странице).
   useEffect(() => {
     const onUnauthorized = () => {
       dispatch(logout());

@@ -13,7 +13,6 @@ export default function LoginPage() {
   const { isLoading, error, user } = useAppSelector((s) => s.auth);
   const location = useLocation();
   const successMessage = (location.state as { message?: string } | null)?.message ?? '';
-  // Если http() редиректнул сюда из-за 401, показываем причину в виде уведомления.
   const expiredNotice = new URLSearchParams(location.search).get('reason') === 'expired';
 
   const [email, setEmail] = useState('');

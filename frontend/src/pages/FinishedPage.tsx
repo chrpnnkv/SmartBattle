@@ -47,8 +47,6 @@ export default function FinishedPage() {
   const correctAnswers = stateData?.correctAnswers ?? 0;
   const totalAnswered = stateData?.totalAnswered ?? 0;
 
-  // 1) Реальный leaderboard приходит через WS session_finished → location.state.finalResults.
-  // 2) В режиме mock fallback берём данные из sb_mock_sessions, как раньше.
   const leaderboard: SessionParticipant[] = (() => {
     if (stateData?.finalResults && stateData.finalResults.length > 0) {
       return [...stateData.finalResults]
@@ -74,8 +72,6 @@ export default function FinishedPage() {
 
   const myRank = leaderboard.findIndex((p) => p.nickname === nickname) + 1;
   const totalParticipants = leaderboard.length;
-
-  // Процент верных ответов — из stateData (фронтовый счётчик) либо из leaderboard.
   const myEntry = stateData?.finalResults?.find((r) => r.name === nickname);
   const totalQuestions = myEntry?.totalQuestions ?? totalAnswered;
   const myCorrect = myEntry?.correctAnswers ?? correctAnswers;

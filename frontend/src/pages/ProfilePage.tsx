@@ -43,8 +43,6 @@ export default function ProfilePage() {
     setPwLoading(true);
     setPwServerError('');
     try {
-      // Через thunk — он сам сохранит свежий токен в localStorage и Redux,
-      // чтобы после смены пароля пользователь не уехал в 401-цикл из-за истечения старого JWT.
       const result = await dispatch(changePassword({ oldPassword, newPassword }));
       if (changePassword.rejected.match(result)) {
         setPwServerError((result.payload as string) ?? 'Произошла ошибка');

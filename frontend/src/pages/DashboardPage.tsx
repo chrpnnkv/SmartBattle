@@ -12,19 +12,15 @@ import { api } from '../api';
 import type { Quiz, QuizMode, GameReport } from '../types';
 import styles from './DashboardPage.module.css';
 
-// Полная неделя с понедельника по воскресенье — выходные тоже видны.
 const WEEK_DAYS = ['ПН', 'ВТ', 'СР', 'ЧТ', 'ПТ', 'СБ', 'ВС'];
 
 function buildActivityData(reports: GameReport[]) {
   const now = new Date();
-
-  // dayOfWeek: 0 = Mon, 6 = Sun (Date#getDay() считает с воскресенья).
   const dayOfWeek = now.getDay() === 0 ? 6 : now.getDay() - 1;
   const monday = new Date(now);
   monday.setDate(now.getDate() - dayOfWeek);
   monday.setHours(0, 0, 0, 0);
 
-  // 7 ячеек на 7 дней.
   const counts = [0, 0, 0, 0, 0, 0, 0];
   reports.forEach((r) => {
     const d = new Date(r.playedAt);
@@ -74,16 +70,12 @@ export default function DashboardPage() {
     quiz: null, mode: 'teacher_paced', isOpen: false,
   });
 
-  // Загружаем квизы и отчёты. Делаем функцию отдельно, чтобы можно было дёрнуть
-  // её при возврате фокуса на вкладку и после того, как пользователь сыграет квиз.
   const loadReports = () => {
     setReportsError(null);
     api.analytics
       .getReports()
       .then((data) => setReports(data ?? []))
       .catch((err: unknown) => {
-        // 401 уже обработан в realApiService (редирект на /login).
-        // Здесь показываем только реальные ошибки фронту.
         const msg = (err as Error)?.message ?? 'Не удалось загрузить отчёты';
         setReportsError(msg);
       });
@@ -94,8 +86,6 @@ export default function DashboardPage() {
     loadReports();
   }, [dispatch]);
 
-  // Перезагружаем отчёты при возврате фокуса на вкладку, чтобы
-  // после сыгранного квиза счётчик «Игр проведено» обновился сам.
   useEffect(() => {
     const onFocus = () => {
       dispatch(fetchMyQuizzes());

@@ -19,8 +19,6 @@ export interface IAuthApi {
   getMe(): Promise<User>;
   login(data: LoginRequest): Promise<AuthResponse>;
   register(data: RegisterRequest): Promise<AuthResponse>;
-  // ChangePassword теперь возвращает свежие токен и user — токен ротируется при смене пароля,
-  // и фронт обязан сохранить новый, иначе старый JWT будет тикать к истечению "втихую".
   changePassword(data: ChangePasswordRequest): Promise<AuthResponse & { message?: string }>;
   forgotPassword(data: ForgotPasswordRequest): Promise<void>;
   resetPassword(data: ResetPasswordRequest): Promise<void>;
@@ -39,7 +37,6 @@ export interface ISessionApi {
   createSession(quizId: string, mode?: string): Promise<GameSession>;
   joinSession(data: JoinSessionRequest): Promise<JoinSessionResponse>;
   getSession(sessionId: string): Promise<GameSession>;
-  // start/end зеркалят статус в БД Core. Прогресс по вопросам и ответам идёт через WebSocket.
   startSession(sessionId: string): Promise<void>;
   endSession(sessionId: string): Promise<void>;
 }

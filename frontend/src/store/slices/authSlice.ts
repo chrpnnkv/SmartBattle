@@ -10,9 +10,6 @@ interface AuthState {
   isInitialized: boolean;
 }
 
-// Безопасное чтение токена при инициализации стора. localStorage может быть недоступен
-// в test-окружении (jsdom при определённых конфигурациях), в Safari Private Mode или в SSR.
-// Без этого guard'a сам импорт authSlice падает в любом окружении без window.localStorage.
 function readInitialToken(): string | null {
   try {
     if (typeof localStorage === 'undefined') return null;
@@ -63,8 +60,6 @@ export const register = createAsyncThunk(
   }
 );
 
-// При смене пароля бэкенд отдаёт свежий токен. Сохраняем его и в localStorage,
-// и в Redux — иначе клиент продолжит ходить со старым JWT, который тикает к истечению.
 export const changePassword = createAsyncThunk(
   'auth/changePassword',
   async (data: ChangePasswordRequest, { rejectWithValue }) => {
@@ -140,7 +135,6 @@ const authSlice = createSlice({
         state.error = action.payload as string;
       });
 
-    // Смена пароля → ротация токена.
     builder
       .addCase(changePassword.fulfilled, (state, action) => {
         if (action.payload?.user) state.user = action.payload.user;

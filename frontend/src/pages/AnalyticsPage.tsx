@@ -321,7 +321,6 @@ export default function AnalyticsPage() {
       startTimer(firstQ?.timeLimitSeconds ?? 30);
       startAnsweredPoll(session.id, session.participants.length);
     } else {
-      // start_session автоматически запускает первый вопрос на сервере
       wsService.send('start_session', {});
     }
   };
@@ -331,17 +330,11 @@ export default function AnalyticsPage() {
     onTimerExpired();
   };
 
-  // WS подключение делаем РОВНО ОДИН РАЗ за жизнь сессии.
-  // Зависимости — только session.id, иначе любая мутация Redux (sessionFinished,
-  // participantJoined и т.п.) триггерила reconnect к уже завершённой комнате
-  // и фронт получал [room_full] сессия уже завершена вместо finished-экрана.
   useEffect(() => {
     if (!session || wsConnected.current) return;
     wsConnected.current = true;
     wsService.connect(session.id, {
       roomCode: session.pin,
-      // Передаём имя учителя, чтобы realtime не падал на проверке name=='', даже если
-      // в JWT нет email-claim (старый токен).
       name: user?.name ?? '',
       token: localStorage.getItem('accessToken') ?? '',
     });
@@ -350,12 +343,9 @@ export default function AnalyticsPage() {
       setWsErrorMsg(`[${payload.code}] ${payload.message}`);
     });
 
-    // Сидируем счётчик и Redux из снимка, что приходит в joined —
-    // нужно при переподключении учителя / открытии лобби, в котором уже кто-то есть.
     wsService.on<WsJoinedPayload>('joined', (payload) => {
       if (!payload) return;
       const students = (payload.participants ?? []).filter((p) => p.nickname && p.nickname !== '');
-      // Используем authoritative totalCount от сервера, иначе считаем студентов в снимке.
       const count = typeof payload.totalCount === 'number' ? payload.totalCount : students.length;
       setParticipantCount(count);
       students.forEach((p) => dispatch(participantJoined(p)));
@@ -368,7 +358,6 @@ export default function AnalyticsPage() {
       }
     });
 
-    // Когда кто-то выходит — сервер шлёт participant_left с актуальным totalCount.
     wsService.on<{ participant_id: string; name?: string; totalCount?: number }>('participant_left', (payload) => {
       if (typeof payload.totalCount === 'number') {
         setParticipantCount(payload.totalCount);
@@ -412,7 +401,6 @@ export default function AnalyticsPage() {
         }
       );
 
-      // Текущая таблица лидеров (рассылается realtime после каждого вопроса).
       wsService.on<WsLeaderboardPayload>('leaderboard', (payload) => {
         const updated: SessionParticipant[] = payload.entries.map((e) => ({
           id: `lb_${e.rank}`,
@@ -433,8 +421,6 @@ export default function AnalyticsPage() {
       if (answeredPollRef.current) clearInterval(answeredPollRef.current);
       if (resultsTimerRef.current) clearInterval(resultsTimerRef.current);
     };
-    // eslint-disable-next-line react-hooks/exhaustive-deps -- умышленно не реагируем на каждую
-    // мутацию session, иначе WS reconnect'ится на завершённой комнате.
   }, [session?.id]);
 
   

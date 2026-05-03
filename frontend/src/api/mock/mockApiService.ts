@@ -289,7 +289,6 @@ const authApi: IAuthApi = {
   },
   async changePassword(_data: ChangePasswordRequest): Promise<AuthResponse & { message?: string }> {
     await delay();
-    // В моке всё равно отдаём свежий "токен", чтобы FE-флоу не ветвился по режиму.
     return {
       user: { ...MOCK_USER },
       tokens: { accessToken: 'mock-token-' + uid() },
