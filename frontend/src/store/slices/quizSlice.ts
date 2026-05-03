@@ -16,9 +16,16 @@ const initialState: QuizState = {
   error: null,
 };
 
-export const fetchMyQuizzes = createAsyncThunk('quiz/fetchMy', async () => {
-  return api.quizzes.getMyQuizzes();
-});
+export const fetchMyQuizzes = createAsyncThunk(
+  'quiz/fetchMy',
+  async (_arg, { rejectWithValue }) => {
+    try {
+      return await api.quizzes.getMyQuizzes();
+    } catch (e: unknown) {
+      return rejectWithValue((e as Error)?.message ?? 'Не удалось загрузить квизы');
+    }
+  }
+);
 
 export const fetchQuizById = createAsyncThunk(
   'quiz/fetchById',

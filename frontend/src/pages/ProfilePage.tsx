@@ -2,13 +2,14 @@ import { useState } from 'react';
 import AppLayout from '../components/layout/AppLayout/AppLayout';
 import Button from '../components/ui/Button/Button';
 import Input from '../components/ui/Input/Input';
-import { useAppSelector } from '../hooks/redux';
-import { api } from '../api';
+import { useAppDispatch, useAppSelector } from '../hooks/redux';
+import { changePassword } from '../store/slices/authSlice';
 import styles from './ProfilePage.module.css';
 
 type Tab = 'info' | 'password';
 
 export default function ProfilePage() {
+  const dispatch = useAppDispatch();
   const { user } = useAppSelector((s) => s.auth);
   const [activeTab, setActiveTab] = useState<Tab>('info');
 
@@ -42,7 +43,13 @@ export default function ProfilePage() {
     setPwLoading(true);
     setPwServerError('');
     try {
-      await api.auth.changePassword({ oldPassword, newPassword });
+      // Через thunk — он сам сохранит свежий токен в localStorage и Redux,
+      // чтобы после смены пароля пользователь не уехал в 401-цикл из-за истечения старого JWT.
+      const result = await dispatch(changePassword({ oldPassword, newPassword }));
+      if (changePassword.rejected.match(result)) {
+        setPwServerError((result.payload as string) ?? 'Произошла ошибка');
+        return;
+      }
       setPwSuccess(true);
       setOldPassword('');
       setNewPassword('');

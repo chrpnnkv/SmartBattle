@@ -5,6 +5,13 @@ WORKDIR /app
 COPY package*.json ./
 RUN npm ci
 
+ARG VITE_API_BASE_URL=http://localhost:8080
+ARG VITE_WS_URL=ws://localhost:8081
+ARG VITE_USE_MOCK=false
+ENV VITE_API_BASE_URL=${VITE_API_BASE_URL}
+ENV VITE_WS_URL=${VITE_WS_URL}
+ENV VITE_USE_MOCK=${VITE_USE_MOCK}
+
 COPY . .
 RUN npm run build
 

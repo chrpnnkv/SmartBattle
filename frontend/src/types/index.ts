@@ -5,7 +5,7 @@ export interface User {
   email: string;
   name: string;
   role: 'teacher' | 'student';
-  createdAt: string;
+  createdAt?: string;
 }
 
 export interface AuthTokens {
@@ -82,8 +82,8 @@ export interface Quiz {
   mode: QuizMode;
   settings: QuizSettings;
   questions: Question[];
-  questionCount: number;
-  estimatedMinutes: number;
+  questionCount?: number;
+  estimatedMinutes?: number;
   createdAt: string;
   updatedAt: string;
   authorId: string;
@@ -118,6 +118,7 @@ export interface SessionParticipant {
 export interface GameSession {
   id: string;
   quizId: string;
+  hostId?: string;
   pin: string;
   status: SessionStatus;
   mode: QuizMode;
@@ -125,7 +126,7 @@ export interface GameSession {
   totalQuestions: number;
   participants: SessionParticipant[];
   startedAt?: string;
-  finishedAt?: string;
+  finishedAt?: string | null;
 }
 
 export interface JoinSessionRequest {
@@ -136,15 +137,8 @@ export interface JoinSessionRequest {
 export interface JoinSessionResponse {
   sessionId: string;
   participantId: string;
+  status?: SessionStatus | string;
   quiz: Pick<Quiz, 'id' | 'title' | 'mode'>;
-}
-
-export interface SubmitAnswerRequest {
-  sessionId: string;
-  participantId: string;
-  questionId: string;
-  answerId: string;
-  timeSpentMs: number;
 }
 
 export interface AnswerDistribution {
@@ -166,6 +160,14 @@ export interface QuestionReport {
   fastestCorrectParticipants: Pick<SessionParticipant, 'id' | 'nickname'>[];
 }
 
+export interface ReportLeaderboardEntry extends SessionParticipant {
+  rank: number;
+  /** Сколько правильных ответов из totalQuestions. */
+  correctAnswers: number;
+  /** Сколько всего вопросов было в квизе. */
+  totalQuestions: number;
+}
+
 export interface GameReport {
   id: string;
   sessionId: string;
@@ -174,35 +176,39 @@ export interface GameReport {
   playedAt: string;
   participantCount: number;
   avgScore: number;
+  /**
+   * Detailed per-question reports. Empty when the snapshot stored by realtime
+   * doesn't yet contain a `question_reports` array.
+   */
   questionReports: QuestionReport[];
-  leaderboard: (SessionParticipant & { rank: number })[];
+  leaderboard: ReportLeaderboardEntry[];
 }
 
-export type WsEventType =
-  | 'participant_joined'
-  | 'participant_left'
-  | 'session_started'
-  | 'question_started'
-  | 'answer_received'
-  | 'question_ended'
-  | 'session_finished'
-  | 'leaderboard_update';
+// Названия WS-событий, на которые подписывается фронт. Используется только
+// для документации/автокомплита — runtime-кода нет, поэтому WsEventType / WsEvent
+// удалены как неиспользуемые. Если понадобятся — вернуть здесь.
 
-export interface WsEvent<T = unknown> {
-  type: WsEventType;
-  payload: T;
+export interface WsJoinedPayload {
+  room_code: string;
+  role: 'teacher' | 'student';
+  name: string;
+  quiz_title: string;
+  total_questions: number;
+  participants: SessionParticipant[];
+  totalCount: number;
 }
 
 export interface WsQuestionStartedPayload {
   question: Question;
   questionIndex: number;
   totalQuestions: number;
-  startedAt: number; 
+  startedAt: number;
 }
 
 export interface WsQuestionEndedPayload {
   questionReport: QuestionReport;
   leaderboard: SessionParticipant[];
+  endedAt: number;
 }
 
 export interface WsParticipantJoinedPayload {
@@ -210,15 +216,13 @@ export interface WsParticipantJoinedPayload {
   totalCount: number;
 }
 
-export interface ApiError {
-  message: string;
-  statusCode: number;
-  errors?: Record<string, string[]>;
+export interface WsAnswerReceivedPayload {
+  participant_name: string;
+  answers_count: number;
+  total_participants: number;
 }
 
-export interface PaginatedResponse<T> {
-  data: T[];
-  total: number;
-  page: number;
-  pageSize: number;
+export interface WsLeaderboardPayload {
+  entries: { rank: number; name: string; score: number }[];
 }
+

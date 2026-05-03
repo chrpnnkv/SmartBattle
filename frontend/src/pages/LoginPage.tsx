@@ -13,6 +13,8 @@ export default function LoginPage() {
   const { isLoading, error, user } = useAppSelector((s) => s.auth);
   const location = useLocation();
   const successMessage = (location.state as { message?: string } | null)?.message ?? '';
+  // Если http() редиректнул сюда из-за 401, показываем причину в виде уведомления.
+  const expiredNotice = new URLSearchParams(location.search).get('reason') === 'expired';
 
   const [email, setEmail] = useState('');
   const [password, setPassword] = useState('');
@@ -48,6 +50,11 @@ export default function LoginPage() {
         {successMessage && (
           <div className={styles.alertSuccess} role="status">
             {successMessage}
+          </div>
+        )}
+        {expiredNotice && !error && (
+          <div className={styles.alertError} role="alert">
+            Сессия истекла, пожалуйста, войдите снова.
           </div>
         )}
         {error && (

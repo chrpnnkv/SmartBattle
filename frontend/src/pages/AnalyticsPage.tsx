@@ -4,11 +4,22 @@ import AppLayout from '../components/layout/AppLayout/AppLayout';
 import Button from '../components/ui/Button/Button';
 import Modal from '../components/ui/Modal/Modal';
 import { useAppDispatch, useAppSelector } from '../hooks/redux';
-import { startSession, endSession, questionEnded, participantJoined, sessionFinished } from '../store/slices/sessionSlice';
+import { startSession, endSession, questionEnded, participantJoined, sessionFinished, leaderboardUpdated } from '../store/slices/sessionSlice';
 import { fetchSession } from '../store/slices/sessionSlice';
 import { fetchQuizById } from '../store/slices/quizSlice';
 import { wsService, USE_MOCK } from '../api/wsService';
-import type { WsQuestionEndedPayload, WsQuestionStartedPayload, WsParticipantJoinedPayload, QuestionReport, Question, QuestionType } from '../types';
+import type {
+  WsQuestionEndedPayload,
+  WsQuestionStartedPayload,
+  WsParticipantJoinedPayload,
+  WsAnswerReceivedPayload,
+  WsLeaderboardPayload,
+  WsJoinedPayload,
+  QuestionReport,
+  Question,
+  QuestionType,
+  SessionParticipant,
+} from '../types';
 import styles from './AnalyticsPage.module.css';
 
 const IconClock = () => (
@@ -159,6 +170,7 @@ export default function AnalyticsPage() {
 
   const { session, isLoading } = useAppSelector((s) => s.session);
   const { currentQuiz } = useAppSelector((s) => s.quiz);
+  const { user } = useAppSelector((s) => s.auth);
 
   
   const [report, setReport] = useState<QuestionReport | null>(null);
@@ -319,12 +331,18 @@ export default function AnalyticsPage() {
     onTimerExpired();
   };
 
-  
+  // WS подключение делаем РОВНО ОДИН РАЗ за жизнь сессии.
+  // Зависимости — только session.id, иначе любая мутация Redux (sessionFinished,
+  // participantJoined и т.п.) триггерила reconnect к уже завершённой комнате
+  // и фронт получал [room_full] сессия уже завершена вместо finished-экрана.
   useEffect(() => {
     if (!session || wsConnected.current) return;
     wsConnected.current = true;
     wsService.connect(session.id, {
       roomCode: session.pin,
+      // Передаём имя учителя, чтобы realtime не падал на проверке name=='', даже если
+      // в JWT нет email-claim (старый токен).
+      name: user?.name ?? '',
       token: localStorage.getItem('accessToken') ?? '',
     });
 
@@ -332,11 +350,29 @@ export default function AnalyticsPage() {
       setWsErrorMsg(`[${payload.code}] ${payload.message}`);
     });
 
-    wsService.on<{ quiz_title: string; total_questions: number }>('joined', (_payload) => {});
+    // Сидируем счётчик и Redux из снимка, что приходит в joined —
+    // нужно при переподключении учителя / открытии лобби, в котором уже кто-то есть.
+    wsService.on<WsJoinedPayload>('joined', (payload) => {
+      if (!payload) return;
+      const students = (payload.participants ?? []).filter((p) => p.nickname && p.nickname !== '');
+      // Используем authoritative totalCount от сервера, иначе считаем студентов в снимке.
+      const count = typeof payload.totalCount === 'number' ? payload.totalCount : students.length;
+      setParticipantCount(count);
+      students.forEach((p) => dispatch(participantJoined(p)));
+    });
 
     wsService.on<WsParticipantJoinedPayload>('participant_joined', (payload) => {
       dispatch(participantJoined(payload.participant));
-      setParticipantCount(payload.totalCount);
+      if (typeof payload.totalCount === 'number') {
+        setParticipantCount(payload.totalCount);
+      }
+    });
+
+    // Когда кто-то выходит — сервер шлёт participant_left с актуальным totalCount.
+    wsService.on<{ participant_id: string; name?: string; totalCount?: number }>('participant_left', (payload) => {
+      if (typeof payload.totalCount === 'number') {
+        setParticipantCount(payload.totalCount);
+      }
     });
 
     wsService.on<WsQuestionEndedPayload>('question_ended', (payload) => {
@@ -363,7 +399,7 @@ export default function AnalyticsPage() {
         startTimer(payload.question.timeLimitSeconds ?? 30);
       });
 
-      wsService.on<{ participant_name: string; answers_count: number; total_participants: number }>(
+      wsService.on<WsAnswerReceivedPayload>(
         'answer_received',
         (payload) => {
           setAnsweredCount(payload.answers_count);
@@ -375,6 +411,19 @@ export default function AnalyticsPage() {
           }
         }
       );
+
+      // Текущая таблица лидеров (рассылается realtime после каждого вопроса).
+      wsService.on<WsLeaderboardPayload>('leaderboard', (payload) => {
+        const updated: SessionParticipant[] = payload.entries.map((e) => ({
+          id: `lb_${e.rank}`,
+          nickname: e.name,
+          avatarInitials: e.name.slice(0, 2).toUpperCase(),
+          avatarColor: '#7c3aed',
+          score: e.score,
+          answeredCount: 0,
+        }));
+        dispatch(leaderboardUpdated(updated));
+      });
     }
 
     return () => {
@@ -384,7 +433,9 @@ export default function AnalyticsPage() {
       if (answeredPollRef.current) clearInterval(answeredPollRef.current);
       if (resultsTimerRef.current) clearInterval(resultsTimerRef.current);
     };
-  }, [session, dispatch]);
+    // eslint-disable-next-line react-hooks/exhaustive-deps -- умышленно не реагируем на каждую
+    // мутацию session, иначе WS reconnect'ится на завершённой комнате.
+  }, [session?.id]);
 
   
   useEffect(() => {

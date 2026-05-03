@@ -1,6 +1,6 @@
 import { useEffect } from 'react';
 import { useAppDispatch, useAppSelector } from './hooks/redux';
-import { initAuth } from './store/slices/authSlice';
+import { initAuth, logout } from './store/slices/authSlice';
 import { AppRouter } from './router/AppRouter';
 
 export default function App() {
@@ -8,8 +8,19 @@ export default function App() {
   const { isInitialized } = useAppSelector((s) => s.auth);
 
   useEffect(() => {
-    
+
     dispatch(initAuth());
+  }, [dispatch]);
+
+  // Глобальный листенер для 401 от realApiService.
+  // Когда токен протух/потерян, мы хотим, чтобы Redux тоже знал об этом
+  // (иначе ProtectedRoute будет держать пользователя на странице).
+  useEffect(() => {
+    const onUnauthorized = () => {
+      dispatch(logout());
+    };
+    window.addEventListener('sb:unauthorized', onUnauthorized);
+    return () => window.removeEventListener('sb:unauthorized', onUnauthorized);
   }, [dispatch]);
 
   

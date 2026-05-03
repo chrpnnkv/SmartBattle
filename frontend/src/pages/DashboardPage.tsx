@@ -12,26 +12,47 @@ import { api } from '../api';
 import type { Quiz, QuizMode, GameReport } from '../types';
 import styles from './DashboardPage.module.css';
 
-const WEEK_DAYS = ['ПН', 'ВТ', 'СР', 'ЧТ', 'ПТ'];
+// Полная неделя с понедельника по воскресенье — выходные тоже видны.
+const WEEK_DAYS = ['ПН', 'ВТ', 'СР', 'ЧТ', 'ПТ', 'СБ', 'ВС'];
 
 function buildActivityData(reports: GameReport[]) {
   const now = new Date();
-  
+
+  // dayOfWeek: 0 = Mon, 6 = Sun (Date#getDay() считает с воскресенья).
   const dayOfWeek = now.getDay() === 0 ? 6 : now.getDay() - 1;
   const monday = new Date(now);
   monday.setDate(now.getDate() - dayOfWeek);
   monday.setHours(0, 0, 0, 0);
 
-  const counts = [0, 0, 0, 0, 0];
+  // 7 ячеек на 7 дней.
+  const counts = [0, 0, 0, 0, 0, 0, 0];
   reports.forEach((r) => {
     const d = new Date(r.playedAt);
-    if (d >= monday) {
-      const idx = d.getDay() === 0 ? 6 : d.getDay() - 1;
-      if (idx < 5) counts[idx]++;
-    }
+    if (Number.isNaN(d.getTime())) return;
+    if (d < monday) return;
+    const idx = d.getDay() === 0 ? 6 : d.getDay() - 1;
+    if (idx >= 0 && idx < 7) counts[idx] += 1;
   });
+
   const max = Math.max(...counts, 1);
-  return WEEK_DAYS.map((label, i) => ({ label, value: counts[i], max }));
+  const formatter = new Intl.DateTimeFormat('ru-RU', { day: 'numeric', month: 'long' });
+
+  return WEEK_DAYS.map((label, i) => {
+    const dayDate = new Date(monday);
+    dayDate.setDate(monday.getDate() + i);
+
+    let state: 'past' | 'today' | 'future' = 'past';
+    if (i === dayOfWeek) state = 'today';
+    else if (i > dayOfWeek) state = 'future';
+
+    return {
+      label,
+      value: counts[i],
+      max,
+      state,
+      title: `${label} · ${formatter.format(dayDate)} · ${counts[i]} игр`,
+    };
+  });
 }
 
 interface LaunchModalState {
@@ -44,17 +65,44 @@ export default function DashboardPage() {
   const dispatch = useAppDispatch();
   const navigate = useNavigate();
   const { user } = useAppSelector((s) => s.auth);
-  const { quizzes, isLoading } = useAppSelector((s) => s.quiz);
+  const { quizzes, isLoading, error: quizError } = useAppSelector((s) => s.quiz);
   const { session, isLoading: sessionLoading } = useAppSelector((s) => s.session);
 
   const [reports, setReports] = useState<GameReport[]>([]);
+  const [reportsError, setReportsError] = useState<string | null>(null);
   const [launchModal, setLaunchModal] = useState<LaunchModalState>({
     quiz: null, mode: 'teacher_paced', isOpen: false,
   });
 
+  // Загружаем квизы и отчёты. Делаем функцию отдельно, чтобы можно было дёрнуть
+  // её при возврате фокуса на вкладку и после того, как пользователь сыграет квиз.
+  const loadReports = () => {
+    setReportsError(null);
+    api.analytics
+      .getReports()
+      .then((data) => setReports(data ?? []))
+      .catch((err: unknown) => {
+        // 401 уже обработан в realApiService (редирект на /login).
+        // Здесь показываем только реальные ошибки фронту.
+        const msg = (err as Error)?.message ?? 'Не удалось загрузить отчёты';
+        setReportsError(msg);
+      });
+  };
+
   useEffect(() => {
     dispatch(fetchMyQuizzes());
-    api.analytics.getReports().then(setReports).catch(() => {});
+    loadReports();
+  }, [dispatch]);
+
+  // Перезагружаем отчёты при возврате фокуса на вкладку, чтобы
+  // после сыгранного квиза счётчик «Игр проведено» обновился сам.
+  useEffect(() => {
+    const onFocus = () => {
+      dispatch(fetchMyQuizzes());
+      loadReports();
+    };
+    window.addEventListener('focus', onFocus);
+    return () => window.removeEventListener('focus', onFocus);
   }, [dispatch]);
 
   const [isLaunching, setIsLaunching] = useState(false);
@@ -124,6 +172,45 @@ export default function DashboardPage() {
             Создать новый квиз
           </Button>
         </div>
+        {(reportsError || quizError) && (
+          <div
+            style={{
+              padding: '12px 16px',
+              marginBottom: 16,
+              borderRadius: 8,
+              background: '#fef2f2',
+              color: '#b91c1c',
+              fontSize: 14,
+              display: 'flex',
+              justifyContent: 'space-between',
+              alignItems: 'center',
+              gap: 12,
+            }}
+            role="alert"
+          >
+            <span>
+              {quizError && reportsError
+                ? `Ошибка загрузки данных: ${quizError}; ${reportsError}`
+                : quizError
+                  ? `Не удалось загрузить квизы: ${quizError}`
+                  : `Не удалось загрузить отчёты: ${reportsError}`}
+            </span>
+            <button
+              onClick={() => { dispatch(fetchMyQuizzes()); loadReports(); }}
+              style={{
+                background: 'transparent',
+                border: '1px solid #b91c1c',
+                color: '#b91c1c',
+                padding: '4px 12px',
+                borderRadius: 6,
+                cursor: 'pointer',
+                fontSize: 13,
+              }}
+            >
+              Повторить
+            </button>
+          </div>
+        )}
         <div className={styles.statsGrid}>
           <div className={styles.statCard}>
             <span className={styles.statLabel}>Всего квизов</span>
