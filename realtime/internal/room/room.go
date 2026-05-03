@@ -36,8 +36,10 @@ type QuestionOption struct {
 type Question struct {
 	ID           string
 	QuizID       string
-	Type         string // "multiple_choice", "true_false", etc.
+	Type         string // "multiple_choice", "multiple_select", "true_false", "open_answer"
 	Text         string
+	ImageURL     string
+	Score        int
 	Options      []QuestionOption
 	TimeLimitSec int
 	Order        int
@@ -102,6 +104,10 @@ type Room struct {
 	CurrentQuestionIndex int
 	QuestionStartedAt    time.Time
 
+	// Накопленные отчёты по вопросам (формируются в sendQuestionEndedLocked
+	// и отправляются в backend-core при завершении сессии).
+	QuestionReports []message.QuestionReport
+
 	StartedAt  time.Time
 	FinishedAt time.Time
 
@@ -113,6 +119,7 @@ type Room struct {
 
 // RoomConfig — параметры комнаты.
 type RoomConfig struct {
+	RoomCodeLength         int
 	MaxParticipants        int
 	DefaultQuestionTimeSec int
 }
@@ -318,6 +325,7 @@ func (r *Room) nextQuestionLocked() error {
 			QuizID:           q.QuizID,
 			Type:             q.Type,
 			Text:             q.Text,
+			ImageURL:         q.ImageURL,
 			Options:          opts,
 			TimeLimitSeconds: timeLimitSec,
 			Order:            r.CurrentQuestionIndex,
@@ -641,6 +649,9 @@ func (r *Room) sendQuestionEndedLocked() {
 		FastestCorrectParticipants: fastestShort,
 	}
 
+	// Сохраняем отчёт в комнате — он будет включён в snapshot для backend-core.
+	r.QuestionReports = append(r.QuestionReports, report)
+
 	payload := message.QuestionEndedPayload{
 		QuestionReport: report,
 		Leaderboard:    r.buildSessionParticipantsLocked(),
@@ -783,6 +794,13 @@ func (r *Room) GetStatus() Status {
 	r.mu.RLock()
 	defer r.mu.RUnlock()
 	return r.Status
+}
+
+// CurrentIndex возвращает индекс текущего вопроса (0-based, -1 если ещё не стартовали).
+func (r *Room) CurrentIndex() int {
+	r.mu.RLock()
+	defer r.mu.RUnlock()
+	return r.CurrentQuestionIndex
 }
 
 // StudentCount возвращает количество студентов.

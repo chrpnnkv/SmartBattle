@@ -8,7 +8,7 @@ import (
 	"sync"
 )
 
-const roomCodeAlphabet = "ABCDEFGHJKLMNPQRSTUVWXYZ23456789"
+const roomCodeAlphabet = "0123456789"
 
 // Manager — реестр игровых комнат.
 type Manager struct {
@@ -33,7 +33,11 @@ func (m *Manager) Create(quizID, quizTitle string, questions []Question) (*Room,
 		return nil, errors.New("квиз не содержит вопросов")
 	}
 
-	code := m.generateCode(6)
+	length := m.cfg.RoomCodeLength
+	if length <= 0 {
+		length = 6
+	}
+	code := m.generateCode(length)
 
 	room := New(code, quizID, quizTitle, questions, m.cfg, m.logger)
 
