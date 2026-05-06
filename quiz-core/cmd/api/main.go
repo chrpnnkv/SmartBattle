@@ -48,7 +48,8 @@ func main() {
 		log.Fatalf("не удалось загрузить список администраторов из %s: %v", cfg.AdminsFile, err)
 	}
 
-	authService := service.NewAuthService(userRepo, cfg, adminList)
+	emailSvc := service.NewSMTPEmailService(cfg)
+	authService := service.NewAuthService(userRepo, cfg, adminList, emailSvc)
 	quizService := service.NewQuizService(quizRepo)
 	reportService := service.NewReportService(reportRepo)
 

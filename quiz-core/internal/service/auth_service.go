@@ -16,16 +16,22 @@ import (
 )
 
 type AuthService struct {
-	repo   *repository.UserRepository
-	cfg    *config.Config
-	admins *admins.List
+	repo         *repository.UserRepository
+	cfg          *config.Config
+	admins       *admins.List
+	emailService EmailService
 }
 
 // NewAuthService — admins может быть nil; в этом случае никто не считается администратором.
 // Передаётся через DI из main.go, поскольку файл со списком администраторов
 // загружается на этапе сборки зависимостей.
-func NewAuthService(repo *repository.UserRepository, cfg *config.Config, adminList *admins.List) *AuthService {
-	return &AuthService{repo: repo, cfg: cfg, admins: adminList}
+func NewAuthService(repo *repository.UserRepository, cfg *config.Config, adminList *admins.List, emailService EmailService) *AuthService {
+	return &AuthService{
+		repo:         repo,
+		cfg:          cfg,
+		admins:       adminList,
+		emailService: emailService,
+	}
 }
 
 func (s *AuthService) GetUserByID(id uuid.UUID) (*models.User, error) {
@@ -151,13 +157,21 @@ func (s *AuthService) ForgotPassword(email string) error {
 		return err
 	}
 
-	// Логирование сырого reset-токена допустимо только в dev-окружении.
-	// В production эта строка превращает доступ к stdout/логам в захват аккаунта.
-	// Включается переменной окружения LOG_RESET_TOKENS=true.
+	// --- НОВЫЙ БЛОК ОТПРАВКИ ПИСЬМА ---
+	if s.emailService != nil {
+		go func() {
+			err := s.emailService.SendPasswordResetEmail(user.Email, token)
+			if err != nil {
+				log.Printf("[ERROR] Failed to send reset email to %s: %v", user.Email, err)
+			}
+		}()
+	}
+	// ----------------------------------
+
 	if os.Getenv("LOG_RESET_TOKENS") == "true" {
 		log.Printf("RESET PASSWORD TOKEN FOR %s: %s\n", email, token)
 	} else {
-		log.Printf("Password reset requested for %s (token logging disabled; set LOG_RESET_TOKENS=true to see it in logs)", email)
+		log.Printf("Password reset requested for %s", email)
 	}
 	return nil
 }

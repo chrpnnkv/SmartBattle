@@ -17,7 +17,13 @@ type Config struct {
 	RealtimeURL     string
 	// AdminsFile — путь к JSON-файлу со списком email-адресов администраторов.
 	// Не обязательная переменная: при отсутствии файла никто не считается администратором.
-	AdminsFile string
+	AdminsFile   string
+	FrontendURL  string
+	SMTPHost     string
+	SMTPPort     string
+	SMTPUser     string
+	SMTPPassword string
+	SMTPFrom     string
 }
 
 // Validate проверяет, что обязательные переменные окружения заданы.
@@ -63,6 +69,12 @@ func Load() *Config {
 		XInternalSecret: os.Getenv("X_INTERNAL_SECRET"),
 		RealtimeURL:     getEnv("REALTIME_URL", "http://localhost:8081"),
 		AdminsFile:      getEnv("ADMINS_FILE", "admins.json"),
+		FrontendURL:     os.Getenv("FRONTEND_URL"),
+		SMTPHost:        os.Getenv("SMTP_HOST"),
+		SMTPPort:        os.Getenv("SMTP_PORT"),
+		SMTPUser:        os.Getenv("SMTP_USER"),
+		SMTPPassword:    os.Getenv("SMTP_PASSWORD"),
+		SMTPFrom:        os.Getenv("SMTP_FROM"),
 	}
 }
 
