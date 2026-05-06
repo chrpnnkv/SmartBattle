@@ -36,7 +36,7 @@ const NO_REDIRECT_ON_401 = [
 let redirecting = false;
 
 function handleUnauthorized(path: string) {
-  if (redirecting) return;
+if (redirecting) return;
   if (NO_REDIRECT_ON_401.some((p) => path.startsWith(p))) return;
   redirecting = true;
   try {
@@ -46,10 +46,16 @@ function handleUnauthorized(path: string) {
   if (typeof window !== 'undefined') {
     window.dispatchEvent(new CustomEvent('sb:unauthorized'));
     if (window.location.pathname !== '/login') {
-      window.location.replace('/login?reason=expired');
+        const publicPaths = ['/login', '/register', '/forgot-password', '/reset-password'];
+        const currentPath = window.location.pathname;
+
+        if (!publicPaths.some(path => currentPath.startsWith(path))) {
+            window.location.href = '/login?reason=expired';
+        }
     }
   }
 }
+
 
 async function http<T>(
   path: string,
