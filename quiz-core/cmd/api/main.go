@@ -9,7 +9,9 @@ import (
 	"syscall"
 	"time"
 
+	"github.com/chrpnnkv/SmartBattle/internal/admins"
 	"github.com/chrpnnkv/SmartBattle/internal/config"
+	"github.com/chrpnnkv/SmartBattle/internal/realtime"
 	"github.com/chrpnnkv/SmartBattle/internal/repository"
 	"github.com/chrpnnkv/SmartBattle/internal/service"
 	transportHttp "github.com/chrpnnkv/SmartBattle/internal/transport/http"
@@ -29,6 +31,9 @@ import (
 // @name X-Internal-Secret
 func main() {
 	cfg := config.Load()
+	if err := cfg.Validate(); err != nil {
+		log.Fatalf("конфигурация невалидна: %v", err)
+	}
 	db := repository.NewPostgresDB(cfg)
 
 	userRepo := repository.NewUserRepository(db)
@@ -36,17 +41,26 @@ func main() {
 	reportRepo := repository.NewReportRepository(db)
 	sessionRepo := repository.NewSessionRepository(db)
 
-	authService := service.NewAuthService(userRepo, cfg)
+	// Список администраторов: загружается из statically-managed JSON-файла.
+	// Отсутствие файла — допустимый режим: никто не считается администратором.
+	adminList, err := admins.LoadFromFile(cfg.AdminsFile)
+	if err != nil {
+		log.Fatalf("не удалось загрузить список администраторов из %s: %v", cfg.AdminsFile, err)
+	}
+
+	authService := service.NewAuthService(userRepo, cfg, adminList)
 	quizService := service.NewQuizService(quizRepo)
 	reportService := service.NewReportService(reportRepo)
 
-	// Теперь SessionService получает доступ к квизам и конфигу!
-	sessionService := service.NewSessionService(sessionRepo, quizRepo, cfg)
+	// HTTP-клиент к realtime — единственная точка интеграции, скрытая за интерфейсом.
+	// В тестах SessionService можно подменить на фейк (см. internal/realtime/Client).
+	rtClient := realtime.NewHTTPClient(cfg.RealtimeURL, cfg.JWTSecret)
+	sessionService := service.NewSessionService(sessionRepo, quizRepo, rtClient)
 
 	authHandler := handlers.NewAuthHandler(authService)
 	quizHandler := handlers.NewQuizHandler(quizService)
 	reportHandler := handlers.NewReportHandler(reportService, quizService)
-	sessionHandler := handlers.NewSessionHandler(sessionService)
+	sessionHandler := handlers.NewSessionHandler(sessionService, quizService)
 
 	router := transportHttp.SetupRouter(cfg, authHandler, quizHandler, reportHandler, sessionHandler)
 

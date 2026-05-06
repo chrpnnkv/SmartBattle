@@ -53,6 +53,17 @@ func (h *QuizHandler) CreateQuiz(c *gin.Context) {
 }
 
 func (h *QuizHandler) GetQuizzes(c *gin.Context) {
+	// Администратор видит все квизы платформы; обычный преподаватель — только свои.
+	if c.GetString("role") == "admin" {
+		quizzes, err := h.service.GetAllQuizzes()
+		if err != nil {
+			c.JSON(http.StatusInternalServerError, gin.H{"error": err.Error()})
+			return
+		}
+		c.JSON(http.StatusOK, mapQuizzesToDTO(quizzes))
+		return
+	}
+
 	teacherID, err := uuid.Parse(c.GetString("user_id"))
 	if err != nil {
 		c.JSON(http.StatusUnauthorized, gin.H{"error": "invalid user id in token"})
@@ -109,6 +120,12 @@ func (h *QuizHandler) UpdateQuiz(c *gin.Context) {
 		return
 	}
 
+	// Доступ к редактированию: либо автор квиза, либо администратор.
+	if !canManageQuiz(c, existing.TeacherID) {
+		c.JSON(http.StatusForbidden, gin.H{"error": "forbidden: not the quiz owner"})
+		return
+	}
+
 	// Merge: применяем только присланные поля, остальное сохраняем.
 	if input.Title != "" {
 		existing.Title = input.Title
@@ -127,13 +144,10 @@ func (h *QuizHandler) UpdateQuiz(c *gin.Context) {
 		existing.Settings = datatypes.JSON(settingsBytes)
 	}
 	// Questions перезаписываем, только если поле явно прислано (не nil).
+	// При редактировании администратором используем teacherID самого квиза, а не
+	// идентификатор администратора — это сохраняет авторство в БД.
 	if input.Questions != nil {
-		teacherID, parseErr := uuid.Parse(c.GetString("user_id"))
-		if parseErr != nil {
-			c.JSON(http.StatusUnauthorized, gin.H{"error": "invalid user id in token"})
-			return
-		}
-		fresh := mapQuizInputToModel(input, teacherID)
+		fresh := mapQuizInputToModel(input, existing.TeacherID)
 		existing.Questions = fresh.Questions
 	}
 
@@ -155,9 +169,35 @@ func (h *QuizHandler) DeleteQuiz(c *gin.Context) {
 		return
 	}
 
+	// Удалять может либо автор, либо администратор.
+	existing, err := h.service.GetQuizByID(id)
+	if err != nil {
+		c.JSON(http.StatusNotFound, gin.H{"error": "quiz not found"})
+		return
+	}
+	if !canManageQuiz(c, existing.TeacherID) {
+		c.JSON(http.StatusForbidden, gin.H{"error": "forbidden: not the quiz owner"})
+		return
+	}
+
 	if err := h.service.DeleteQuiz(id); err != nil {
 		c.JSON(http.StatusInternalServerError, gin.H{"error": err.Error()})
 		return
 	}
 	c.Status(http.StatusNoContent)
+}
+
+// canManageQuiz возвращает true, если из контекста Gin следует, что вызывающий
+// либо является автором квиза с teacherID, либо имеет роль администратора.
+// Хелпер используется в UpdateQuiz и DeleteQuiz; вынесен сюда, чтобы логика
+// контроля доступа была локализована и согласована.
+func canManageQuiz(c *gin.Context, teacherID uuid.UUID) bool {
+	if c.GetString("role") == "admin" {
+		return true
+	}
+	currentID, err := uuid.Parse(c.GetString("user_id"))
+	if err != nil {
+		return false
+	}
+	return currentID == teacherID
 }

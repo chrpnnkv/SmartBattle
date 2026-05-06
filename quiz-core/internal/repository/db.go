@@ -2,6 +2,7 @@ package repository
 
 import (
 	"log"
+	"os"
 	"time"
 
 	"github.com/chrpnnkv/SmartBattle/internal/config"
@@ -10,6 +11,15 @@ import (
 	"gorm.io/gorm"
 	"gorm.io/gorm/logger"
 )
+
+// migrationsDir — путь к каталогу с *.sql миграциями. Переопределяется
+// переменной окружения MIGRATIONS_DIR (полезно для тестов и нестандартных деплоев).
+func migrationsDir() string {
+	if d := os.Getenv("MIGRATIONS_DIR"); d != "" {
+		return d
+	}
+	return "migrations"
+}
 
 func NewPostgresDB(cfg *config.Config) *gorm.DB {
 	var (
@@ -42,7 +52,14 @@ func NewPostgresDB(cfg *config.Config) *gorm.DB {
 		log.Fatalf("Failed to connect to database after retries: %v", err)
 	}
 
-	// Миграции тоже ретраим, если БД только поднялась и еще не готова к DDL
+	// Сначала применяем версионированные SQL-миграции (см. migrations/).
+	// Они каноническая правда о схеме; AutoMigrate ниже — safety-net на случай
+	// расхождения моделей и SQL во время разработки.
+	if err := RunSQLMigrations(db, migrationsDir()); err != nil {
+		log.Fatalf("Failed to apply SQL migrations: %v", err)
+	}
+
+	// AutoMigrate с ретраями: если БД только поднялась — даём ей шанс.
 	for attempt := 1; attempt <= 10; attempt++ {
 		err = db.AutoMigrate(
 			&models.User{},
@@ -58,7 +75,7 @@ func NewPostgresDB(cfg *config.Config) *gorm.DB {
 		time.Sleep(1 * time.Second)
 	}
 	if err != nil {
-		log.Fatalf("Failed to run database migrations after retries: %v", err)
+		log.Fatalf("Failed to run AutoMigrate after retries: %v", err)
 	}
 
 	return db

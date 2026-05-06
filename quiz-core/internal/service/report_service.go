@@ -4,6 +4,8 @@ import (
 	"bytes"
 	"encoding/csv"
 	"encoding/json"
+	"fmt"
+	"sort"
 	"strings"
 	"time"
 
@@ -69,10 +71,19 @@ func (s *ReportService) GetTeacherReports(hostID uuid.UUID) ([]models.GameSessio
 	return s.repo.GetTeacherReports(hostID)
 }
 
+// GetAllReports — выборка для администратора. Возвращает все завершённые
+// сессии вне зависимости от того, какой преподаватель их провёл.
+func (s *ReportService) GetAllReports() ([]models.GameSession, error) {
+	return s.repo.GetAllReports()
+}
+
 func (s *ReportService) GetReportByID(id uuid.UUID) (*models.GameSession, error) {
 	return s.repo.GetByID(id)
 }
 
+// ExportCSV — выгрузка отчёта по сессии. Раньше клала только метаданные сессии,
+// теперь — реальный leaderboard участников из snapshot, отсортированный по очкам.
+// Удобно скачать после завершения квиза и быстро посмотреть результаты в Excel.
 func (s *ReportService) ExportCSV(id uuid.UUID) (*bytes.Buffer, error) {
 	session, err := s.repo.GetByID(id)
 	if err != nil {
@@ -81,9 +92,49 @@ func (s *ReportService) ExportCSV(id uuid.UUID) (*bytes.Buffer, error) {
 
 	b := &bytes.Buffer{}
 	w := csv.NewWriter(b)
-	w.Write([]string{"ID", "QuizID", "Status", "PIN"})
-	w.Write([]string{session.ID.String(), session.QuizID.String(), session.Status, session.PIN})
-	w.Flush()
+	defer w.Flush()
+
+	// Заголовок — метаданные.
+	_ = w.Write([]string{"Session ID", session.ID.String()})
+	_ = w.Write([]string{"Quiz ID", session.QuizID.String()})
+	_ = w.Write([]string{"PIN", session.PIN})
+	_ = w.Write([]string{"Status", session.Status})
+	if !session.StartedAt.IsZero() {
+		_ = w.Write([]string{"Started at", session.StartedAt.UTC().Format(time.RFC3339)})
+	}
+	if session.FinishedAt != nil && !session.FinishedAt.IsZero() {
+		_ = w.Write([]string{"Finished at", session.FinishedAt.UTC().Format(time.RFC3339)})
+	}
+	_ = w.Write([]string{}) // пустая строка-разделитель
+
+	// Лидерборд — основная ценность для преподавателя.
+	_ = w.Write([]string{"Rank", "Nickname", "Score", "Correct", "Total", "Accuracy %"})
+
+	if len(session.ReportSnapshot) > 0 {
+		var snap RealtimeResultsPayload
+		if err := json.Unmarshal(session.ReportSnapshot, &snap); err == nil {
+			results := make([]RealtimeParticipantResult, len(snap.Results))
+			copy(results, snap.Results)
+			sort.SliceStable(results, func(i, j int) bool {
+				return results[i].Score > results[j].Score
+			})
+
+			for i, r := range results {
+				accuracy := 0
+				if r.TotalQuestions > 0 {
+					accuracy = int(float64(r.CorrectAnswers) * 100.0 / float64(r.TotalQuestions))
+				}
+				_ = w.Write([]string{
+					fmt.Sprintf("%d", i+1),
+					r.Name,
+					fmt.Sprintf("%d", r.Score),
+					fmt.Sprintf("%d", r.CorrectAnswers),
+					fmt.Sprintf("%d", r.TotalQuestions),
+					fmt.Sprintf("%d", accuracy),
+				})
+			}
+		}
+	}
 
 	return b, nil
 }

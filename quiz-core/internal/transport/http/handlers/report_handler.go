@@ -5,6 +5,7 @@ import (
 	"log"
 	"net/http"
 
+	"github.com/chrpnnkv/SmartBattle/internal/models"
 	"github.com/chrpnnkv/SmartBattle/internal/service"
 	"github.com/gin-gonic/gin"
 	"github.com/google/uuid"
@@ -52,21 +53,32 @@ func (h *ReportHandler) SaveInternalReport(c *gin.Context) {
 // @Success 200 {array} GameReportDTO
 // @Router /api/reports [get]
 func (h *ReportHandler) GetReports(c *gin.Context) {
-	hostIDStr := c.GetString("user_id")
-	hostID, err := uuid.Parse(hostIDStr)
-	if err != nil {
-		c.JSON(http.StatusBadRequest, gin.H{"error": "invalid user id in token"})
-		return
+	// Администратор видит отчёты по всем сессиям; преподаватель — только свои.
+	var (
+		sessions []models.GameSession
+		err      error
+	)
+	if c.GetString("role") == "admin" {
+		sessions, err = h.service.GetAllReports()
+		if err != nil {
+			c.JSON(http.StatusInternalServerError, gin.H{"error": err.Error()})
+			return
+		}
+		log.Printf("GetReports (admin): found=%d", len(sessions))
+	} else {
+		hostIDStr := c.GetString("user_id")
+		hostID, parseErr := uuid.Parse(hostIDStr)
+		if parseErr != nil {
+			c.JSON(http.StatusBadRequest, gin.H{"error": "invalid user id in token"})
+			return
+		}
+		sessions, err = h.service.GetTeacherReports(hostID)
+		if err != nil {
+			c.JSON(http.StatusInternalServerError, gin.H{"error": err.Error()})
+			return
+		}
+		log.Printf("GetReports: host_id=%s found=%d", hostID, len(sessions))
 	}
-
-	sessions, err := h.service.GetTeacherReports(hostID)
-	if err != nil {
-		c.JSON(http.StatusInternalServerError, gin.H{"error": err.Error()})
-		return
-	}
-
-	// Логируем для отладки: преподаватель → сколько отчётов нашли в БД.
-	log.Printf("GetReports: host_id=%s found=%d", hostID, len(sessions))
 
 	reports := make([]GameReportDTO, 0, len(sessions))
 	for _, s := range sessions {

@@ -20,6 +20,13 @@ RUN apk add --no-cache ca-certificates && \
     addgroup -S app && adduser -S app -G app
 
 COPY --from=builder /smartbattle-quiz-core /usr/local/bin/smartbattle-quiz-core
+# Каталог миграций нужен на старте — RunSQLMigrations ищет ./migrations.
+COPY --from=builder /app/migrations /migrations
+ENV MIGRATIONS_DIR=/migrations
+# Список администраторов. Файл опционален: при его отсутствии никто не
+# считается администратором, что соответствует «чистому» развёртыванию.
+COPY --from=builder /app/admins.example.json /admins.json
+ENV ADMINS_FILE=/admins.json
 
 USER app
 EXPOSE 8080

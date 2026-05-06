@@ -24,6 +24,14 @@ func (r *ReportRepository) GetTeacherReports(hostID uuid.UUID) ([]models.GameSes
 	return sessions, err
 }
 
+// GetAllReports — все завершённые сессии всех преподавателей.
+// Используется обработчиком GetReports, когда вызывающий — администратор.
+func (r *ReportRepository) GetAllReports() ([]models.GameSession, error) {
+	var sessions []models.GameSession
+	err := r.db.Where("status = ?", "finished").Order("started_at desc").Find(&sessions).Error
+	return sessions, err
+}
+
 func (r *ReportRepository) GetByID(id uuid.UUID) (*models.GameSession, error) {
 	var session models.GameSession
 	err := r.db.First(&session, "id = ?", id).Error

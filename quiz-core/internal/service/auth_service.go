@@ -6,6 +6,7 @@ import (
 	"os"
 	"time"
 
+	"github.com/chrpnnkv/SmartBattle/internal/admins"
 	"github.com/chrpnnkv/SmartBattle/internal/config"
 	"github.com/chrpnnkv/SmartBattle/internal/models"
 	"github.com/chrpnnkv/SmartBattle/internal/repository"
@@ -15,12 +16,16 @@ import (
 )
 
 type AuthService struct {
-	repo *repository.UserRepository
-	cfg  *config.Config
+	repo   *repository.UserRepository
+	cfg    *config.Config
+	admins *admins.List
 }
 
-func NewAuthService(repo *repository.UserRepository, cfg *config.Config) *AuthService {
-	return &AuthService{repo: repo, cfg: cfg}
+// NewAuthService — admins может быть nil; в этом случае никто не считается администратором.
+// Передаётся через DI из main.go, поскольку файл со списком администраторов
+// загружается на этапе сборки зависимостей.
+func NewAuthService(repo *repository.UserRepository, cfg *config.Config, adminList *admins.List) *AuthService {
+	return &AuthService{repo: repo, cfg: cfg, admins: adminList}
 }
 
 func (s *AuthService) GetUserByID(id uuid.UUID) (*models.User, error) {
@@ -60,9 +65,17 @@ func (s *AuthService) Register(name, email, password string) (*models.User, stri
 }
 
 func (s *AuthService) issueToken(user *models.User) (string, error) {
+	// Роль в JWT определяется так: если email пользователя присутствует в списке
+	// администраторов (admins.json), роль повышается до "admin"; иначе используется
+	// значение из БД. Это позволяет назначать администратора без изменения данных
+	// в таблице users — достаточно дописать строку в JSON-файл и перезапустить сервис.
+	role := user.Role
+	if s.admins != nil && s.admins.IsAdmin(user.Email) {
+		role = admins.RoleAdmin
+	}
 	token := jwt.NewWithClaims(jwt.SigningMethodHS256, jwt.MapClaims{
 		"user_id": user.ID.String(),
-		"role":    user.Role,
+		"role":    role,
 		"email":   user.Email,
 		// 7 дней — компромисс между удобством преподавателя и безопасностью.
 		"exp": time.Now().Add(time.Hour * 24 * 7).Unix(),

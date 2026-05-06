@@ -9,11 +9,12 @@ import (
 )
 
 type SessionHandler struct {
-	service *service.SessionService
+	service     *service.SessionService
+	quizService *service.QuizService
 }
 
-func NewSessionHandler(service *service.SessionService) *SessionHandler {
-	return &SessionHandler{service: service}
+func NewSessionHandler(svc *service.SessionService, quizSvc *service.QuizService) *SessionHandler {
+	return &SessionHandler{service: svc, quizService: quizSvc}
 }
 
 type CreateSessionReq struct {
@@ -58,7 +59,7 @@ func (h *SessionHandler) CreateSession(c *gin.Context) {
 		return
 	}
 
-	c.JSON(http.StatusCreated, h.service.BuildSessionDTO(session))
+	c.JSON(http.StatusCreated, buildSessionDTO(h.service, h.quizService, session))
 }
 
 // @Summary Присоединиться к игре (Студент)
@@ -102,7 +103,7 @@ func (h *SessionHandler) GetSession(c *gin.Context) {
 		c.JSON(http.StatusNotFound, gin.H{"error": "session not found"})
 		return
 	}
-	c.JSON(http.StatusOK, h.service.BuildSessionDTO(session))
+	c.JSON(http.StatusOK, buildSessionDTO(h.service, h.quizService, session))
 }
 
 func (h *SessionHandler) setSessionStatus(c *gin.Context, status string) {

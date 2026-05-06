@@ -21,13 +21,13 @@ func (r *SessionRepository) Create(session *models.GameSession) error {
 func (r *SessionRepository) GetByID(id uuid.UUID) (*models.GameSession, error) {
 	var session models.GameSession
 	err := r.db.First(&session, "id = ?", id).Error
-	return &session, err
+	return &session, translate(err)
 }
 
 func (r *SessionRepository) GetByPIN(pin string) (*models.GameSession, error) {
 	var session models.GameSession
 	err := r.db.First(&session, "pin = ?", pin).Error
-	return &session, err
+	return &session, translate(err)
 }
 
 func (r *SessionRepository) Update(session *models.GameSession) error {
