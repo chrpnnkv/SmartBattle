@@ -41,7 +41,7 @@ export function AppRouter() {
         <Route path="/login"    element={<PublicOnlyRoute><LoginPage /></PublicOnlyRoute>} />
         <Route path="/register" element={<PublicOnlyRoute><RegisterPage /></PublicOnlyRoute>} />
         <Route path="/forgot-password" element={<PublicOnlyRoute><ForgotPasswordPage /></PublicOnlyRoute>} />
-        <Route path="/reset-password"  element={<PublicOnlyRoute><ResetPasswordPage /></PublicOnlyRoute>} />
+        <Route path="/reset-password"  element={<ResetPasswordPage />} />
         <Route path="/session/:sessionId/waiting"  element={<WaitingRoomPage />} />
         <Route path="/session/:sessionId/question" element={<QuestionPage />} />
         <Route path="/session/:sessionId/finished" element={<FinishedPage />} />
