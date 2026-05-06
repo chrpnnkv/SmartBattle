@@ -53,7 +53,13 @@ function handleUnauthorized(path: string) {
   if (typeof window !== 'undefined') {
     window.dispatchEvent(new CustomEvent('sb:unauthorized'));
     if (window.location.pathname !== '/login') {
-      window.location.replace('/login?reason=expired');
+        const publicPaths = ['/login', '/register', '/forgot-password', '/reset-password'];
+        const currentPath = window.location.pathname;
+
+        if (!publicPaths.some(path => currentPath.startsWith(path))) {
+            // Делаем редирект ТОЛЬКО если мы не на публичной странице
+            window.location.href = '/login?reason=expired';
+        }
     }
   }
 }
