@@ -1,4 +1,4 @@
-import { Link, useNavigate, useLocation } from 'react-router-dom';
+﻿import { Link, useNavigate, useLocation } from 'react-router-dom';
 import { useAppDispatch, useAppSelector } from '../../../hooks/redux';
 import { logout } from '../../../store/slices/authSlice';
 import Logo from '../../ui/Logo/Logo';
@@ -28,7 +28,7 @@ export default function AppLayout({ children }: AppLayoutProps) {
 
   const navLinks = [
     { to: '/dashboard', label: 'Панель' },
-    { to: '/reports', label: 'Отчёты' },
+    { to: '/reports', label: 'Отчеты' },
     { to: '/profile', label: 'Профиль' },
   ];
 

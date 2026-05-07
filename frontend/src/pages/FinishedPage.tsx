@@ -1,4 +1,4 @@
-import { useNavigate, useLocation } from 'react-router-dom';
+﻿import { useNavigate, useLocation } from 'react-router-dom';
 import { useAppDispatch } from '../hooks/redux';
 import { resetSession } from '../store/slices/sessionSlice';
 import Logo from '../components/ui/Logo/Logo';
@@ -94,7 +94,7 @@ export default function FinishedPage() {
               <path d="M12 15v4M8 21h8" stroke="currentColor" strokeWidth="2" strokeLinecap="round"/>
             </svg>
           </div>
-          <h1 className={styles.title}>Квиз завершён!</h1>
+          <h1 className={styles.title}>Квиз завершен!</h1>
           {stateData?.quizTitle && (
             <p className={styles.playerName}>{stateData.quizTitle}</p>
           )}

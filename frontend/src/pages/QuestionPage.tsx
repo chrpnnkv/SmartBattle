@@ -1,4 +1,4 @@
-import { useEffect, useRef, useState, useCallback } from 'react';
+﻿import { useEffect, useRef, useState, useCallback } from 'react';
 import { useParams, useLocation, useNavigate } from 'react-router-dom';
 import { wsService } from '../api/wsService';
 import type { Question, WsQuestionStartedPayload, WsQuestionEndedPayload } from '../types';
@@ -128,7 +128,7 @@ function OpenAnswerInput({ onSubmit, submitted, isCorrect, showResults }: {
           onClick={() => { if (value.trim()) onSubmit(value.trim()); }}
           disabled={!value.trim()}
         >
-          Ответить →
+          Ответить 
         </button>
       )}
 
@@ -624,7 +624,7 @@ export default function QuestionPage() {
         </span>
         <span className={styles.brandName}>Smart Battle</span>
         <div className={styles.scoreBox}>
-          <span className={styles.scoreLabel}>СЧЁТ</span>
+          <span className={styles.scoreLabel}>СЧЕТ</span>
           <span className={styles.scoreValue}>{score.toLocaleString('ru-RU')}</span>
         </div>
       </div>
@@ -666,7 +666,7 @@ export default function QuestionPage() {
           {isMulti && !submitted && selectedIds.length > 0 && (
             <div className={styles.multiSubmit}>
               <button className={styles.multiSubmitBtn} onClick={handleSubmitMulti}>
-                Подтвердить ответ ({selectedIds.length}) →
+                Подтвердить ответ ({selectedIds.length}) 
               </button>
             </div>
           )}

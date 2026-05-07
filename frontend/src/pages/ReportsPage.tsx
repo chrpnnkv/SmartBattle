@@ -1,4 +1,4 @@
-import { useEffect, useState } from 'react';
+﻿import { useEffect, useState } from 'react';
 import { useNavigate } from 'react-router-dom';
 import AppLayout from '../components/layout/AppLayout/AppLayout';
 import Button from '../components/ui/Button/Button';
@@ -20,7 +20,7 @@ export default function ReportsPage() {
     api.analytics.getReports()
       .then((data) => setReports(data ?? []))
       .catch((err: unknown) => {
-        setError((err as Error)?.message ?? 'Не удалось загрузить отчёты');
+        setError((err as Error)?.message ?? 'Не удалось загрузить отчеты');
       })
       .finally(() => setIsLoading(false));
   };
@@ -52,8 +52,8 @@ export default function ReportsPage() {
       <div className={styles.page}>
         <div className={styles.pageHeader}>
           <div>
-            <h1 className={styles.pageTitle}>Отчёты</h1>
-            <p className={styles.pageSubtitle}>История проведённых квизов и результаты студентов</p>
+            <h1 className={styles.pageTitle}>Отчеты</h1>
+            <p className={styles.pageSubtitle}>История проведенных квизов и результаты студентов</p>
           </div>
         </div>
 
@@ -102,7 +102,7 @@ export default function ReportsPage() {
                 <polyline points="14 2 14 8 20 8" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round"/>
               </svg>
             </div>
-            <p className={styles.emptyText}>Отчётов пока нет</p>
+            <p className={styles.emptyText}>Отчетов пока нет</p>
             <p className={styles.emptyHint}>Проведите квиз — результаты появятся здесь</p>
             <Button onClick={() => navigate('/dashboard')}>Перейти к квизам</Button>
           </div>

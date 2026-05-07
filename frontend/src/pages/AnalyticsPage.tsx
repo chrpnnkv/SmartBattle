@@ -1,4 +1,4 @@
-import { useEffect, useRef, useState } from 'react';
+﻿import { useEffect, useRef, useState } from 'react';
 import { useParams, useNavigate } from 'react-router-dom';
 import AppLayout from '../components/layout/AppLayout/AppLayout';
 import Button from '../components/ui/Button/Button';
@@ -132,7 +132,7 @@ function LobbyView({ pin, participantCount, quizTitle, onStart, isLoading }: {
           <span>{participantCount} студентов подключилось</span>
         </div>
         <Button size="lg" onClick={onStart} isLoading={isLoading}>
-          Начать квиз →
+          Начать квиз 
         </Button>
       </div>
     </div>
@@ -488,14 +488,14 @@ export default function AnalyticsPage() {
                 <polyline points="8 12 11 15 16 9" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round"/>
               </svg>
             </div>
-            <h2 className={styles.finishedTitle}>Квиз завершён!</h2>
-            <p className={styles.finishedSub}>Результаты сохранены в отчётах</p>
+            <h2 className={styles.finishedTitle}>Квиз завершен!</h2>
+            <p className={styles.finishedSub}>Результаты сохранены в отчетах</p>
             <div className={styles.finishedActions}>
               <Button variant="ghost" onClick={() => navigate('/dashboard')}>
-                ← В личный кабинет
+                 В личный кабинет
               </Button>
               <Button size="lg" onClick={() => navigate('/reports')}>
-                Смотреть отчёт →
+                Смотреть отчет 
               </Button>
             </div>
           </div>
@@ -526,7 +526,7 @@ export default function AnalyticsPage() {
             <div className={styles.waitingCard}>
               <TimerCircle seconds={timeLeft} total={totalTime} />
               <p className={styles.waitingText}>
-                {isStudentPaced ? 'Студенты отвечают в своём темпе' : 'Ожидание ответов студентов...'}
+                {isStudentPaced ? 'Студенты отвечают в своем темпе' : 'Ожидание ответов студентов...'}
               </p>
               <div className={styles.questionPreviewBox}>
                 <p className={styles.questionPreviewText}>{currentQuestion?.text}</p>
@@ -633,7 +633,7 @@ export default function AnalyticsPage() {
                 </div>
               ) : (
                 <Button size="lg" onClick={handleNextQuestion}>
-                  {questionIdx + 1 >= totalQuestions ? 'Завершить квиз' : 'Следующий вопрос →'}
+                  {questionIdx + 1 >= totalQuestions ? 'Завершить квиз' : 'Следующий вопрос '}
                 </Button>
               )}
             </div>

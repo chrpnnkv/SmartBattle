@@ -1,4 +1,4 @@
-import { useState } from 'react';
+﻿import { useState } from 'react';
 import { useNavigate, useSearchParams, Link } from 'react-router-dom';
 import AuthLayout from '../components/layout/AuthLayout/AuthLayout';
 import Input from '../components/ui/Input/Input';
@@ -46,7 +46,7 @@ export default function ResetPasswordPage() {
     setIsLoading(true);
     try {
       await api.auth.resetPassword({ token, newPassword: password });
-      navigate('/login', { state: { message: 'Пароль успешно изменён. Войдите с новым паролем.' } });
+      navigate('/login', { state: { message: 'Пароль успешно изменен. Войдите с новым паролем.' } });
     } catch (err: unknown) {
       setServerError((err as Error).message ?? 'Произошла ошибка');
     } finally {
@@ -55,7 +55,7 @@ export default function ResetPasswordPage() {
   };
 
   return (
-    <AuthLayout title="Новый пароль" subtitle="Придумайте надёжный пароль для вашего аккаунта">
+    <AuthLayout title="Новый пароль" subtitle="Придумайте надежный пароль для вашего аккаунта">
       <form onSubmit={handleSubmit} className={styles.form} noValidate>
         {serverError && <div className={styles.alertError}>{serverError}</div>}
 

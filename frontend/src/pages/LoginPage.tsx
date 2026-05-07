@@ -1,4 +1,4 @@
-import { useState, useEffect } from 'react';
+﻿import { useState, useEffect } from 'react';
 import { Link, useNavigate, useLocation } from 'react-router-dom';
 import AuthLayout from '../components/layout/AuthLayout/AuthLayout';
 import Input from '../components/ui/Input/Input';
@@ -112,7 +112,7 @@ export default function LoginPage() {
         </div>
 
         <Button type="submit" fullWidth size="lg" isLoading={isLoading}>
-          Войти →
+          Войти 
         </Button>
 
         <div className={styles.divider}><span>или</span></div>

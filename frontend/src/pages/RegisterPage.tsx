@@ -1,4 +1,4 @@
-import { useState, useEffect } from 'react';
+﻿import { useState, useEffect } from 'react';
 import { Link, useNavigate } from 'react-router-dom';
 import AuthLayout from '../components/layout/AuthLayout/AuthLayout';
 import Input from '../components/ui/Input/Input';
@@ -118,7 +118,7 @@ export default function RegisterPage() {
         />
 
         <Button type="submit" fullWidth size="lg" isLoading={isLoading}>
-          Зарегистрироваться →
+          Зарегистрироваться 
         </Button>
 
         <div className={styles.divider}><span>или</span></div>

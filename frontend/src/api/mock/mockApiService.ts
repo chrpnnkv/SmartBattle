@@ -1,4 +1,4 @@
-import type {
+﻿import type {
   IApiService,
   IAuthApi,
   IQuizApi,
@@ -39,7 +39,7 @@ const MOCK_QUIZZES: Quiz[] = [
   {
     id: 'q1',
     title: 'Интегралы 2',
-    description: 'Определённые и неопределённые интегралы',
+    description: 'Определенные и неопределенные интегралы',
     status: 'published',
     mode: 'teacher_paced',
     settings: {
@@ -481,7 +481,7 @@ const analyticsApi: IAnalyticsApi = {
       ),
       '',
       
-      'Место,Участник,Счёт,Ответов',
+      'Место,Участник,Счет,Ответов',
       ...report.leaderboard.map((p) =>
         [p.rank, `"${p.nickname}"`, p.score, p.answeredCount].join(',')
       ),

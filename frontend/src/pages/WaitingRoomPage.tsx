@@ -1,4 +1,4 @@
-import { useEffect, useRef, useState } from 'react';
+﻿import { useEffect, useRef, useState } from 'react';
 import { useParams, useLocation, useNavigate } from 'react-router-dom';
 import { useAppDispatch, useAppSelector } from '../hooks/redux';
 import { participantJoined, participantLeft, questionStarted } from '../store/slices/sessionSlice';
@@ -198,7 +198,7 @@ export default function WaitingRoomPage() {
 
         <p className={styles.readyText}>
           <span className={styles.readyDot} />
-          Приготовьтесь! Битва скоро начнётся
+          Приготовьтесь! Битва скоро начнется
         </p>
         <div className={styles.counterBadge}>
           <svg width="16" height="16" viewBox="0 0 24 24" fill="none">

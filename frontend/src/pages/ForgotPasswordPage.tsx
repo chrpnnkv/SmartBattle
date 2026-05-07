@@ -1,4 +1,4 @@
-import { useState } from 'react';
+﻿import { useState } from 'react';
 import { Link } from 'react-router-dom';
 import AuthLayout from '../components/layout/AuthLayout/AuthLayout';
 import Input from '../components/ui/Input/Input';
@@ -40,7 +40,7 @@ export default function ForgotPasswordPage() {
             <p>Проверьте папку «Входящие» и перейдите по ссылке из письма.</p>
           </div>
           <Link to="/login" className={styles.switchLink} style={{ textAlign: 'center', display: 'block' }}>
-            ← Вернуться ко входу
+             Вернуться ко входу
           </Link>
         </div>
       </AuthLayout>
@@ -50,7 +50,7 @@ export default function ForgotPasswordPage() {
   return (
     <AuthLayout
       title="Сброс пароля"
-      subtitle="Введите email — мы пришлём ссылку для восстановления"
+      subtitle="Введите email — мы пришлем ссылку для восстановления"
     >
       <form onSubmit={handleSubmit} className={styles.form} noValidate>
         {error && <div className={styles.alertError}>{error}</div>}

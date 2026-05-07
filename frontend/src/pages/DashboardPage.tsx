@@ -1,4 +1,4 @@
-import { useEffect, useState } from 'react';
+﻿import { useEffect, useState } from 'react';
 import { useNavigate } from 'react-router-dom';
 import AppLayout from '../components/layout/AppLayout/AppLayout';
 import Button from '../components/ui/Button/Button';
@@ -84,7 +84,7 @@ export default function DashboardPage() {
       .catch((err: unknown) => {
         // 401 уже обработан в realApiService (редирект на /login).
         // Здесь показываем только реальные ошибки фронту.
-        const msg = (err as Error)?.message ?? 'Не удалось загрузить отчёты';
+        const msg = (err as Error)?.message ?? 'Не удалось загрузить отчеты';
         setReportsError(msg);
       });
   };
@@ -193,7 +193,7 @@ export default function DashboardPage() {
                 ? `Ошибка загрузки данных: ${quizError}; ${reportsError}`
                 : quizError
                   ? `Не удалось загрузить квизы: ${quizError}`
-                  : `Не удалось загрузить отчёты: ${reportsError}`}
+                  : `Не удалось загрузить отчеты: ${reportsError}`}
             </span>
             <button
               onClick={() => { dispatch(fetchMyQuizzes()); loadReports(); }}
@@ -232,7 +232,7 @@ export default function DashboardPage() {
             <div className={styles.cardHeader}>
               <h2 className={styles.cardTitle}>Ваши квизы</h2>
               <button className={styles.seeAllBtn} onClick={() => navigate('/reports')}>
-                Отчёты →
+                Отчеты 
               </button>
             </div>
 
@@ -325,7 +325,7 @@ export default function DashboardPage() {
               Отмена
             </Button>
             <Button onClick={handleLaunch} isLoading={sessionLoading}>
-              Запустить →
+              Запустить 
             </Button>
           </>
         }
@@ -335,7 +335,7 @@ export default function DashboardPage() {
           <div className={styles.modeCards}>
             {([
               ['teacher_paced', '🎓', 'Управляет преподаватель', 'Вы контролируете переход между вопросами'],
-              ['student_paced', '🚀', 'Свободный темп', 'Студенты проходят квиз в своём темпе'],
+              ['student_paced', '🚀', 'Свободный темп', 'Студенты проходят квиз в своем темпе'],
             ] as [QuizMode, string, string, string][]).map(([val, icon, name, desc]) => (
               <button
                 key={val}

@@ -1,4 +1,4 @@
-import { useState, useRef, useEffect } from 'react';
+﻿import { useState, useRef, useEffect } from 'react';
 import { useParams, useNavigate } from 'react-router-dom';
 import { useAppDispatch, useAppSelector } from '../hooks/redux';
 import { resetSession } from '../store/slices/sessionSlice';
@@ -183,7 +183,7 @@ export default function JoinPage() {
           {error && <div className={styles.alertError}>{error}</div>}
 
           <Button type="submit" fullWidth size="lg" isLoading={isLoading}>
-            Войти в комнату →
+            Войти в комнату 
           </Button>
         </form>
 

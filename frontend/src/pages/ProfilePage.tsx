@@ -1,4 +1,4 @@
-import { useState } from 'react';
+﻿import { useState } from 'react';
 import AppLayout from '../components/layout/AppLayout/AppLayout';
 import Button from '../components/ui/Button/Button';
 import Input from '../components/ui/Input/Input';
@@ -128,7 +128,7 @@ export default function ProfilePage() {
                     <circle cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="2"/>
                     <polyline points="8 12 11 15 16 9" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round"/>
                   </svg>
-                  Пароль успешно изменён
+                  Пароль успешно изменен
                 </div>
               )}
               {pwServerError && (

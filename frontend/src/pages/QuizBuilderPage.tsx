@@ -1,4 +1,4 @@
-import { useState, useEffect, useCallback } from 'react';
+﻿import { useState, useEffect, useCallback } from 'react';
 import { useNavigate, useParams } from 'react-router-dom';
 import AppLayout from '../components/layout/AppLayout/AppLayout';
 import Button from '../components/ui/Button/Button';
@@ -363,7 +363,7 @@ export default function QuizBuilderPage() {
                     Добавить вариант
                   </button>
                   <span className={styles.openAnswerNote}>
-                    Сравнение без учёта регистра и пробелов по краям
+                    Сравнение без учета регистра и пробелов по краям
                   </span>
                 </div>
               </div>

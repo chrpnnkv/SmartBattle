@@ -1,4 +1,4 @@
-import { Link, useNavigate } from 'react-router-dom';
+﻿import { Link, useNavigate } from 'react-router-dom';
 import { useAppSelector } from '../hooks/redux';
 import Logo from '../components/ui/Logo/Logo';
 import Button from '../components/ui/Button/Button';
@@ -45,13 +45,13 @@ export default function LandingPage() {
           </h1>
           <p className={styles.heroSubtitle}>
             Осваивайте любой предмет через интерактивные квизы —
-            обучение ещё никогда не было таким интересным!
+            обучение еще никогда не было таким интересным!
           </p>
           <div className={styles.heroActions}>
             {user ? (
               <>
                 <Button size="lg" onClick={() => navigate('/dashboard')}>
-                  Перейти в кабинет →
+                  Перейти в кабинет 
                 </Button>
                 <Button size="lg" variant="ghost" onClick={() => navigate('/join')}>
                   Войти по PIN
@@ -60,7 +60,7 @@ export default function LandingPage() {
             ) : (
               <>
                 <Button size="lg" onClick={() => navigate('/register')}>
-                  Начать сейчас →
+                  Начать сейчас 
                 </Button>
                 <Button size="lg" variant="ghost" onClick={() => navigate('/join')}>
                   Войти по PIN
@@ -123,7 +123,7 @@ export default function LandingPage() {
               </svg>
             ),
             title: 'Аналитика в реальном времени',
-            desc: 'Распределение ответов, среднее время, таблица лидеров — всё обновляется мгновенно',
+            desc: 'Распределение ответов, среднее время, таблица лидеров — все обновляется мгновенно',
           },
           {
             icon: (
