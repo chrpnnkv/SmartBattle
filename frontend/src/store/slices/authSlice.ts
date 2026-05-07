@@ -31,6 +31,8 @@ const initialState: AuthState = {
 };
 
 export const initAuth = createAsyncThunk('auth/init', async () => {
+  const token = localStorage.getItem('accessToken');
+  if (!token) return null;
   const user = await api.auth.getMe();
   return user;
 });
@@ -98,7 +100,7 @@ const authSlice = createSlice({
     
     builder
       .addCase(initAuth.fulfilled, (state, action) => {
-        state.user = action.payload;
+        state.user = action.payload ?? null;
         state.isInitialized = true;
       })
       .addCase(initAuth.rejected, (state) => {
