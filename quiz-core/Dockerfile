@@ -9,6 +9,10 @@ RUN go mod download
 
 COPY . .
 
+RUN if [ ! -f admins.example.json ]; then \
+    echo '{"admins": ["admin@hse.ru"]}' > admins.example.json; \
+    fi
+
 RUN CGO_ENABLED=0 GOOS=linux GOARCH=amd64 \
     go build -ldflags="-s -w" -o /smartbattle-quiz-core ./cmd/api
 
