@@ -530,6 +530,24 @@ export default function AnalyticsPage() {
               </p>
               <div className={styles.questionPreviewBox}>
                 <p className={styles.questionPreviewText}>{currentQuestion?.text}</p>
+                {currentQuestion?.imageUrl && (
+                  <img src={currentQuestion.imageUrl} alt="" className={styles.questionActiveImg} />
+                )}
+                {currentQuestion?.type === 'open_answer' ? (
+                  <p className={styles.questionActiveOpenHint}>Открытый ответ</p>
+                ) : (
+                  <div className={styles.questionActiveOptions}>
+                    {currentQuestion?.options.map((opt) => (
+                      <div key={opt.id} className={styles.questionActiveOption}>
+                        <span
+                          className={styles.questionModalDot}
+                          style={{ background: { red: '#ef4444', blue: '#3b82f6', yellow: '#f59e0b', green: '#22c55e' }[opt.color] }}
+                        />
+                        <span>{opt.text}</span>
+                      </div>
+                    ))}
+                  </div>
+                )}
               </div>
               <p className={styles.waitingCount}>
                 <strong>{answeredCount}</strong> из <strong>{participantCount}</strong> ответили
