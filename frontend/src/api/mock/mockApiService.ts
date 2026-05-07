@@ -365,6 +365,10 @@ const quizzesApi: IQuizApi = {
     const idx = MOCK_QUIZZES.findIndex((q) => q.id === id);
     if (idx !== -1) MOCK_QUIZZES.splice(idx, 1);
   },
+  async uploadImage(file: File): Promise<string> {
+    await delay(300);
+    return URL.createObjectURL(file);
+  },
 };
 
 const sessionsApi: ISessionApi = {

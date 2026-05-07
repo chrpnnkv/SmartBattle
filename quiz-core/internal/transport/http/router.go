@@ -18,6 +18,7 @@ func SetupRouter(
 	quizH *handlers.QuizHandler,
 	reportH *handlers.ReportHandler,
 	sessionH *handlers.SessionHandler,
+	uploadH *handlers.UploadHandler,
 ) *gin.Engine {
 	r := gin.Default()
 
@@ -28,6 +29,9 @@ func SetupRouter(
 
 	r.GET("/health", func(c *gin.Context) { c.JSON(200, gin.H{"status": "ok"}) })
 	r.GET("/swagger/*any", ginSwagger.WrapHandler(swaggerFiles.Handler))
+
+	// Статическая раздача загруженных изображений
+	r.Static("/uploads", cfg.UploadsDir)
 
 	r.POST("/api/sessions/join", sessionH.JoinSession)
 	r.GET("/api/sessions/:id", sessionH.GetSession)
@@ -55,6 +59,8 @@ func SetupRouter(
 		api.GET("/quizzes/:id", quizH.GetQuizByID)
 		api.PUT("/quizzes/:id", quizH.UpdateQuiz)
 		api.DELETE("/quizzes/:id", quizH.DeleteQuiz)
+
+		api.POST("/uploads/image", uploadH.UploadImage)
 
 		api.GET("/reports", reportH.GetReports)
 		api.GET("/reports/:id", reportH.GetReportByID)

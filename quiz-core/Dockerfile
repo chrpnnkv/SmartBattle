@@ -21,7 +21,8 @@ RUN CGO_ENABLED=0 GOOS=linux GOARCH=amd64 \
 FROM alpine:3.20
 
 RUN apk add --no-cache ca-certificates && \
-    addgroup -S app && adduser -S app -G app
+    addgroup -S app && adduser -S app -G app && \
+    mkdir -p /uploads && chown app:app /uploads
 
 COPY --from=builder /smartbattle-quiz-core /usr/local/bin/smartbattle-quiz-core
 # Каталог миграций нужен на старте — RunSQLMigrations ищет ./migrations.
@@ -31,6 +32,7 @@ ENV MIGRATIONS_DIR=/migrations
 # считается администратором, что соответствует «чистому» развёртыванию.
 COPY --from=builder /app/admins.example.json /admins.json
 ENV ADMINS_FILE=/admins.json
+ENV UPLOADS_DIR=/uploads
 
 USER app
 EXPOSE 8080

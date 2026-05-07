@@ -33,6 +33,7 @@ export interface IQuizApi {
   createQuiz(data: CreateQuizRequest): Promise<Quiz>;
   updateQuiz(id: string, data: UpdateQuizRequest): Promise<Quiz>;
   deleteQuiz(id: string): Promise<void>;
+  uploadImage(file: File): Promise<string>;
 }
 
 export interface ISessionApi {

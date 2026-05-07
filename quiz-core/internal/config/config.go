@@ -19,6 +19,7 @@ type Config struct {
 	// Не обязательная переменная: при отсутствии файла никто не считается администратором.
 	AdminsFile   string
 	FrontendURL  string
+	UploadsDir   string
 	SMTPHost     string
 	SMTPPort     string
 	SMTPUser     string
@@ -70,6 +71,7 @@ func Load() *Config {
 		RealtimeURL:     getEnv("REALTIME_URL", "http://localhost:8081"),
 		AdminsFile:      getEnv("ADMINS_FILE", "admins.json"),
 		FrontendURL:     os.Getenv("FRONTEND_URL"),
+		UploadsDir:      getEnv("UPLOADS_DIR", "./uploads"),
 		SMTPHost:        os.Getenv("SMTP_HOST"),
 		SMTPPort:        os.Getenv("SMTP_PORT"),
 		SMTPUser:        os.Getenv("SMTP_USER"),

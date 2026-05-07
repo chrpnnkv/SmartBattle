@@ -15,6 +15,8 @@ const (
 	TypeFinishSession = "finish_session"
 	// TypePing — heartbeat от клиента.
 	TypePing = "ping"
+	// TypeEndQuestion — команда преподавателя: завершить текущий вопрос и показать статистику.
+	TypeEndQuestion = "end_question"
 )
 
 const (

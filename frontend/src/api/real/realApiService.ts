@@ -123,6 +123,23 @@ const quizzesApi: IQuizApi = {
   updateQuiz: (id: string, data: UpdateQuizRequest) =>
     put<Quiz>(`/api/quizzes/${id}`, data),
   deleteQuiz: (id: string) => del<void>(`/api/quizzes/${id}`),
+  uploadImage: async (file: File): Promise<string> => {
+    const token = localStorage.getItem('accessToken');
+    const formData = new FormData();
+    formData.append('image', file);
+    const res = await fetch(`${BASE_URL}/api/uploads/image`, {
+      method: 'POST',
+      headers: token ? { Authorization: `Bearer ${token}` } : {},
+      body: formData,
+    });
+    if (!res.ok) {
+      if (res.status === 401) handleUnauthorized('/api/uploads/image');
+      const err = await res.json().catch(() => ({ message: res.statusText }));
+      throw new Error(err.message ?? 'Upload failed');
+    }
+    const data = await res.json() as { url: string };
+    return `${BASE_URL}${data.url}`;
+  },
 };
 
 const sessionsApi: ISessionApi = {
