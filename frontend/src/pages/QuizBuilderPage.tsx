@@ -5,6 +5,7 @@ import Button from '../components/ui/Button/Button';
 import { useAppDispatch, useAppSelector } from '../hooks/redux';
 import { fetchQuizById, createQuiz, updateQuiz } from '../store/slices/quizSlice';
 import type { Question, QuestionType, AnswerOption, QuizSettings } from '../types';
+import { api } from '../api';
 import styles from './QuizBuilderPage.module.css';
 
 const uid = () => Math.random().toString(36).slice(2, 8);
@@ -91,6 +92,7 @@ export default function QuizBuilderPage() {
   const [questions, setQuestions] = useState<Question[]>([makeEmptyQuestion(1)]);
   const [activeIdx, setActiveIdx] = useState(0);
   const [isSaving, setIsSaving] = useState(false);
+  const [isUploading, setIsUploading] = useState(false);
   const [titleError, setTitleError] = useState('');
 
   useEffect(() => {
@@ -243,7 +245,24 @@ export default function QuizBuilderPage() {
                     <polyline points="21 15 16 10 5 21" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round"/>
                   </svg>
                   <span>Перетащите изображение или видео сюда</span>
-                  <input type="file" accept="image/*,video/*" className={styles.mediaInput} onChange={(e) => { const file = e.target.files?.[0]; if (file) updateActive({ imageUrl: URL.createObjectURL(file) }); }} />
+                  <input
+                  type="file"
+                  accept="image/*"
+                  className={styles.mediaInput}
+                  disabled={isUploading}
+                  onChange={async (e) => {
+                    const file = e.target.files?.[0];
+                    if (!file) return;
+                    setIsUploading(true);
+                    try {
+                      const url = await api.quizzes.uploadImage(file);
+                      updateActive({ imageUrl: url });
+                    } finally {
+                      setIsUploading(false);
+                      e.target.value = '';
+                    }
+                  }}
+                />
                 </label>
               )}
             </div>

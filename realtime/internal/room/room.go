@@ -111,6 +111,10 @@ type Room struct {
 	StartedAt  time.Time
 	FinishedAt time.Time
 
+	// currentQuestionEndedAt ненулевое, если текущий вопрос уже завершён
+	// командой end_question (до явного перехода к следующему).
+	currentQuestionEndedAt time.Time
+
 	cfg    RoomConfig
 	logger *slog.Logger
 
@@ -233,6 +237,11 @@ func (r *Room) HandleMessage(c *client.Client, msg message.IncomingMessage) {
 			c.SendMsg(message.NewError(message.ErrCodeUnauthorized, err.Error()))
 		}
 
+	case message.TypeEndQuestion:
+		if err := r.EndCurrentQuestion(c.ID); err != nil {
+			c.SendMsg(message.NewError(message.ErrCodeUnauthorized, err.Error()))
+		}
+
 	case message.TypeAnswer:
 		if err := r.submitAnswerFromWS(c, msg); err != nil {
 			c.SendMsg(message.NewError(message.ErrCodeInvalidMessage, err.Error()))
@@ -241,6 +250,26 @@ func (r *Room) HandleMessage(c *client.Client, msg message.IncomingMessage) {
 	default:
 		c.SendMsg(message.NewError(message.ErrCodeInvalidMessage, "неизвестный тип сообщения: "+msg.Type))
 	}
+}
+
+// EndCurrentQuestion завершает текущий вопрос и рассылает статистику, не переходя к следующему.
+func (r *Room) EndCurrentQuestion(callerID string) error {
+	r.mu.Lock()
+	defer r.mu.Unlock()
+
+	if !r.isTeacher(callerID) {
+		return errors.New("только преподаватель может завершить вопрос")
+	}
+	if r.Status != StatusActive {
+		return errors.New("сессия не активна")
+	}
+	if !r.currentQuestionEndedAt.IsZero() {
+		return nil // идемпотентно — уже завершён
+	}
+
+	r.sendQuestionEndedLocked()
+	r.currentQuestionEndedAt = time.Now()
+	return nil
 }
 
 // StartSession запускает квиз. Только преподаватель может запустить сессию.
@@ -290,9 +319,10 @@ func (r *Room) NextQuestion(callerID string) error {
 
 // nextQuestionLocked — внутренний переход к следующему вопросу (вызывается под мьютексом).
 func (r *Room) nextQuestionLocked() error {
-	if r.CurrentQuestionIndex >= 0 {
+	if r.CurrentQuestionIndex >= 0 && r.currentQuestionEndedAt.IsZero() {
 		r.sendQuestionEndedLocked()
 	}
+	r.currentQuestionEndedAt = time.Time{} // сбрасываем для нового вопроса
 
 	r.CurrentQuestionIndex++
 
@@ -517,7 +547,7 @@ func (r *Room) FinishSession(callerID string, force bool) error {
 		return errors.New("сессия не активна")
 	}
 
-	if r.CurrentQuestionIndex >= 0 {
+	if r.CurrentQuestionIndex >= 0 && r.currentQuestionEndedAt.IsZero() {
 		r.sendQuestionEndedLocked()
 	}
 

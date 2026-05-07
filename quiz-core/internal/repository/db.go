@@ -12,8 +12,8 @@ import (
 	"gorm.io/gorm/logger"
 )
 
-// migrationsDir — путь к каталогу с *.sql миграциями. Переопределяется
-// переменной окружения MIGRATIONS_DIR (полезно для тестов и нестандартных деплоев).
+// migrationsDir — путь к каталогу с *.sql миграциями.
+// Можно переопределить через MIGRATIONS_DIR.
 func migrationsDir() string {
 	if d := os.Getenv("MIGRATIONS_DIR"); d != "" {
 		return d
@@ -27,11 +27,12 @@ func NewPostgresDB(cfg *config.Config) *gorm.DB {
 		err error
 	)
 
-	// Устойчивое подключение к Postgres с retry (важно для docker startup race)
+	// Retry подключения к Postgres
 	for attempt := 1; attempt <= 20; attempt++ {
 		db, err = gorm.Open(postgres.Open(cfg.DB_DSN), &gorm.Config{
 			Logger: logger.Default.LogMode(logger.Info),
 		})
+
 		if err == nil {
 			sqlDB, dbErr := db.DB()
 			if dbErr == nil {
@@ -48,35 +49,39 @@ func NewPostgresDB(cfg *config.Config) *gorm.DB {
 		log.Printf("Postgres connection attempt %d/20 failed: %v", attempt, err)
 		time.Sleep(2 * time.Second)
 	}
+
 	if err != nil {
 		log.Fatalf("Failed to connect to database after retries: %v", err)
 	}
 
-	// Сначала применяем версионированные SQL-миграции (см. migrations/).
-	// Они каноническая правда о схеме; AutoMigrate ниже — safety-net на случай
-	// расхождения моделей и SQL во время разработки.
+	log.Println("Successfully connected to PostgreSQL")
+
+	// Применяем SQL migrations
 	if err := RunSQLMigrations(db, migrationsDir()); err != nil {
 		log.Fatalf("Failed to apply SQL migrations: %v", err)
 	}
 
-	// AutoMigrate с ретраями: если БД только поднялась — даём ей шанс.
-	for attempt := 1; attempt <= 10; attempt++ {
-		err = db.AutoMigrate(
-			&models.User{},
-			&models.Quiz{},
-			&models.Question{},
-			&models.Option{},
-			&models.GameSession{},
-		)
-		if err == nil {
-			break
-		}
-		log.Printf("AutoMigrate attempt %d/10 failed: %v", attempt, err)
-		time.Sleep(1 * time.Second)
-	}
+	log.Println("SQL migrations applied successfully")
+
+	// Проверяем соединение после миграций
+	sqlDB, err := db.DB()
 	if err != nil {
-		log.Fatalf("Failed to run AutoMigrate after retries: %v", err)
+		log.Fatalf("Failed to get sql.DB instance: %v", err)
 	}
+
+	if err := sqlDB.Ping(); err != nil {
+		log.Fatalf("Database ping failed after migrations: %v", err)
+	}
+
+	log.Println("Database is ready")
+
+	// AutoMigrate intentionally disabled.
+	// Schema is managed exclusively through SQL migrations.
+	_ = models.User{}
+	_ = models.Quiz{}
+	_ = models.Question{}
+	_ = models.Option{}
+	_ = models.GameSession{}
 
 	return db
 }

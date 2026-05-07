@@ -222,8 +222,9 @@ export default function AnalyticsPage() {
     if (USE_MOCK) {
       wsService.send('end_question', { questionIndex: questionIdxRef.current });
     } else {
-      const isLast = questionIdxRef.current >= totalQuestionsRef.current - 1;
-      wsService.send(isLast ? 'finish_session' : 'next_question', {});
+      // Отправляем только end_question — сервер пришлёт question_ended со статистикой.
+      // Переход к следующему вопросу произойдёт только после явного нажатия кнопки.
+      wsService.send('end_question', {});
     }
   };
 
@@ -406,8 +407,9 @@ export default function AnalyticsPage() {
           if (isStudentPaced && payload.answers_count >= payload.total_participants) {
             if (timerRef.current) clearInterval(timerRef.current);
             if (answeredPollRef.current) clearInterval(answeredPollRef.current);
-            const isLast = questionIdxRef.current >= totalQuestionsRef.current - 1;
-            wsService.send(isLast ? 'finish_session' : 'next_question', {});
+            // Все ответили — завершаем вопрос и показываем статистику.
+            // Переход к следующему вопросу автоматический через startResultsCountdown.
+            wsService.send('end_question', {});
           }
         }
       );

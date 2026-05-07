@@ -62,8 +62,9 @@ func main() {
 	quizHandler := handlers.NewQuizHandler(quizService)
 	reportHandler := handlers.NewReportHandler(reportService, quizService)
 	sessionHandler := handlers.NewSessionHandler(sessionService, quizService)
+	uploadHandler := handlers.NewUploadHandler(cfg.UploadsDir)
 
-	router := transportHttp.SetupRouter(cfg, authHandler, quizHandler, reportHandler, sessionHandler)
+	router := transportHttp.SetupRouter(cfg, authHandler, quizHandler, reportHandler, sessionHandler, uploadHandler)
 
 	srv := &http.Server{
 		Addr:    ":" + cfg.Port,

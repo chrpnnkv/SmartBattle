@@ -37,6 +37,9 @@ services:
       SMTP_USER: ${SMTP_USER}
       SMTP_PASSWORD: ${SMTP_PASSWORD}
       SMTP_FROM: ${SMTP_FROM}
+      UPLOADS_DIR: /uploads
+    volumes:
+      - uploads_data:/uploads
     ports:
       - "8080:8080"
     depends_on:
@@ -97,3 +100,4 @@ services:
 
 volumes:
   postgres_data:
+  uploads_data:
