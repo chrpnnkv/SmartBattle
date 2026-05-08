@@ -15,13 +15,22 @@ export default function App() {
   // Глобальный листенер для 401 от realApiService.
   // Когда токен протух/потерян, мы хотим, чтобы Redux тоже знал об этом
   // (иначе ProtectedRoute будет держать пользователя на странице).
-  useEffect(() => {
-    const onUnauthorized = () => {
-      dispatch(logout());
-    };
-    window.addEventListener('sb:unauthorized', onUnauthorized);
-    return () => window.removeEventListener('sb:unauthorized', onUnauthorized);
-  }, [dispatch]);
+    useEffect(() => {
+        const onUnauthorized = () => {
+            // Список страниц, на которых 401 статус — это норма (мы и так не залогинены)
+            const publicPaths = ['/login', '/register', '/forgot-password', '/reset-password'];
+
+            // Если мы на одной из этих страниц, игнорируем ошибку и ничего не делаем
+            if (publicPaths.some(path => window.location.pathname.startsWith(path))) {
+                return;
+            }
+
+            // В противном случае — честно разлогиниваем пользователя
+            dispatch(logout());
+        };
+        window.addEventListener('sb:unauthorized', onUnauthorized);
+        return () => window.removeEventListener('sb:unauthorized', onUnauthorized);
+    }, [dispatch]);
 
   
   

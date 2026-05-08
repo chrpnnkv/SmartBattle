@@ -30,8 +30,6 @@ func (r *QuizRepository) GetByTeacherID(teacherID uuid.UUID) ([]models.Quiz, err
 	return quizzes, err
 }
 
-// GetAll возвращает все квизы вне зависимости от автора.
-// Используется только обработчиком GetQuizzes, когда вызывающий — администратор.
 func (r *QuizRepository) GetAll() ([]models.Quiz, error) {
 	var quizzes []models.Quiz
 	err := r.db.Preload("Questions.Options").

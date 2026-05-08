@@ -12,8 +12,6 @@ import (
 	"gorm.io/gorm/logger"
 )
 
-// migrationsDir — путь к каталогу с *.sql миграциями.
-// Можно переопределить через MIGRATIONS_DIR.
 func migrationsDir() string {
 	if d := os.Getenv("MIGRATIONS_DIR"); d != "" {
 		return d
@@ -27,7 +25,6 @@ func NewPostgresDB(cfg *config.Config) *gorm.DB {
 		err error
 	)
 
-	// Retry подключения к Postgres
 	for attempt := 1; attempt <= 20; attempt++ {
 		db, err = gorm.Open(postgres.Open(cfg.DB_DSN), &gorm.Config{
 			Logger: logger.Default.LogMode(logger.Info),
@@ -56,14 +53,12 @@ func NewPostgresDB(cfg *config.Config) *gorm.DB {
 
 	log.Println("Successfully connected to PostgreSQL")
 
-	// Применяем SQL migrations
 	if err := RunSQLMigrations(db, migrationsDir()); err != nil {
 		log.Fatalf("Failed to apply SQL migrations: %v", err)
 	}
 
 	log.Println("SQL migrations applied successfully")
 
-	// Проверяем соединение после миграций
 	sqlDB, err := db.DB()
 	if err != nil {
 		log.Fatalf("Failed to get sql.DB instance: %v", err)
@@ -75,8 +70,6 @@ func NewPostgresDB(cfg *config.Config) *gorm.DB {
 
 	log.Println("Database is ready")
 
-	// AutoMigrate intentionally disabled.
-	// Schema is managed exclusively through SQL migrations.
 	_ = models.User{}
 	_ = models.Quiz{}
 	_ = models.Question{}

@@ -22,7 +22,6 @@ func NewSMTPEmailService(cfg *config.Config) *SMTPEmailService {
 func (s *SMTPEmailService) SendPasswordResetEmail(toEmail, token string) error {
 	resetLink := fmt.Sprintf("%s/reset-password?token=%s", s.cfg.FrontendURL, token)
 
-	// Строгое формирование заголовков по стандарту (обязательно с \r\n)
 	headerFrom := fmt.Sprintf("From: %s\r\n", s.cfg.SMTPFrom)
 	headerTo := fmt.Sprintf("To: %s\r\n", toEmail)
 	subject := "Subject: Сброс пароля в SmartBattle\r\n"
@@ -30,7 +29,6 @@ func (s *SMTPEmailService) SendPasswordResetEmail(toEmail, token string) error {
 
 	body := fmt.Sprintf("Здравствуйте!\n\nВы запросили сброс пароля. Перейдите по ссылке, чтобы установить новый пароль:\n%s\n\nЕсли вы не запрашивали сброс, просто проигнорируйте это письмо.\n\nКоманда SmartBattle", resetLink)
 
-	// Склеиваем всё вместе
 	msg := []byte(headerFrom + headerTo + subject + mime + body)
 
 	auth := smtp.PlainAuth("", s.cfg.SMTPUser, s.cfg.SMTPPassword, s.cfg.SMTPHost)

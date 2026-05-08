@@ -30,14 +30,11 @@ func SetupRouter(
 	r.GET("/health", func(c *gin.Context) { c.JSON(200, gin.H{"status": "ok"}) })
 	r.GET("/swagger/*any", ginSwagger.WrapHandler(swaggerFiles.Handler))
 
-	// Статическая раздача загруженных изображений
 	r.Static("/uploads", cfg.UploadsDir)
 
 	r.POST("/api/sessions/join", sessionH.JoinSession)
 	r.GET("/api/sessions/:id", sessionH.GetSession)
 
-	// Публичный каталог квизов — без авторизации.
-	// Отдельный путь, чтобы не конфликтовать с GET /api/quizzes/:id (Gin radix-tree).
 	r.GET("/api/public/quizzes", quizH.GetPublicQuizzes)
 
 	auth := r.Group("/auth")
@@ -69,8 +66,6 @@ func SetupRouter(
 		api.POST("/sessions", sessionH.CreateSession)
 		api.POST("/sessions/:id/start", sessionH.StartSession)
 		api.POST("/sessions/:id/end", sessionH.EndSession)
-		// Управление переходом к следующему вопросу и приёмом ответов
-		// идёт через WebSocket Realtime — отдельных HTTP-endpoint'ов в Core нет.
 	}
 
 	internal := r.Group("/internal")

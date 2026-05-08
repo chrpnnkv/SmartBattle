@@ -1,7 +1,6 @@
 package config
 
 import (
-	"errors"
 	"fmt"
 	"log"
 	"os"
@@ -15,21 +14,16 @@ type Config struct {
 	JWTSecret       string
 	XInternalSecret string
 	RealtimeURL     string
-	// AdminsFile — путь к JSON-файлу со списком email-адресов администраторов.
-	// Не обязательная переменная: при отсутствии файла никто не считается администратором.
-	AdminsFile   string
-	FrontendURL  string
-	UploadsDir   string
-	SMTPHost     string
-	SMTPPort     string
-	SMTPUser     string
-	SMTPPassword string
-	SMTPFrom     string
+	AdminsFile      string
+	FrontendURL     string
+	UploadsDir      string
+	SMTPHost        string
+	SMTPPort        string
+	SMTPUser        string
+	SMTPPassword    string
+	SMTPFrom        string
 }
 
-// Validate проверяет, что обязательные переменные окружения заданы.
-// Вызывать сразу после Load(), чтобы упасть на старте, а не через минуту
-// retry-цикла к Postgres с непонятной ошибкой.
 func (c *Config) Validate() error {
 	var missing []string
 	if c.DB_DSN == "" {
@@ -49,9 +43,6 @@ func (c *Config) Validate() error {
 	}
 	return nil
 }
-
-// MustValidate — обёртка для main.go: при ошибке завершает процесс с понятной строкой.
-var ErrInvalidConfig = errors.New("invalid configuration")
 
 func Load() *Config {
 	if err := godotenv.Load(); err != nil {

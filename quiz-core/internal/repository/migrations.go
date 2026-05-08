@@ -11,12 +11,6 @@ import (
 	"gorm.io/gorm"
 )
 
-// RunSQLMigrations выполняет SQL-файлы из dir по возрастанию имени.
-// Каждая миграция применяется ровно один раз — запись об этом ведётся в
-// служебной таблице schema_migrations.
-//
-// Если каталог не существует — функция тихо завершается, чтобы среда без
-// migrations/ (например, test) не падала.
 func RunSQLMigrations(db *gorm.DB, dir string) error {
 	if _, err := os.Stat(dir); os.IsNotExist(err) {
 		log.Printf("migrations: dir %q not found, skipping", dir)
@@ -60,8 +54,6 @@ func RunSQLMigrations(db *gorm.DB, dir string) error {
 			return fmt.Errorf("read %s: %w", name, err)
 		}
 
-		// Применяем миграцию и регистрируем её в одной транзакции.
-		// Если упадёт — откатится и не зарегистрируется.
 		err = db.Transaction(func(tx *gorm.DB) error {
 			if err := tx.Exec(string(raw)).Error; err != nil {
 				return fmt.Errorf("apply %s: %w", name, err)
