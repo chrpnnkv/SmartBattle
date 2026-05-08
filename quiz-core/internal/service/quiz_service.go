@@ -26,7 +26,6 @@ func (s *QuizService) GetTeacherQuizzes(teacherID uuid.UUID) ([]models.Quiz, err
 	return s.repo.GetByTeacherID(teacherID)
 }
 
-// GetAllQuizzes — выборка для администратора. Возвращает все квизы платформы.
 func (s *QuizService) GetAllQuizzes() ([]models.Quiz, error) {
 	return s.repo.GetAll()
 }

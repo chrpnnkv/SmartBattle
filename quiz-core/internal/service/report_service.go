@@ -71,8 +71,6 @@ func (s *ReportService) GetTeacherReports(hostID uuid.UUID) ([]models.GameSessio
 	return s.repo.GetTeacherReports(hostID)
 }
 
-// GetAllReports — выборка для администратора. Возвращает все завершённые
-// сессии вне зависимости от того, какой преподаватель их провёл.
 func (s *ReportService) GetAllReports() ([]models.GameSession, error) {
 	return s.repo.GetAllReports()
 }
@@ -81,9 +79,6 @@ func (s *ReportService) GetReportByID(id uuid.UUID) (*models.GameSession, error)
 	return s.repo.GetByID(id)
 }
 
-// ExportCSV — выгрузка отчёта по сессии. Раньше клала только метаданные сессии,
-// теперь — реальный leaderboard участников из snapshot, отсортированный по очкам.
-// Удобно скачать после завершения квиза и быстро посмотреть результаты в Excel.
 func (s *ReportService) ExportCSV(id uuid.UUID) (*bytes.Buffer, error) {
 	session, err := s.repo.GetByID(id)
 	if err != nil {
@@ -94,7 +89,6 @@ func (s *ReportService) ExportCSV(id uuid.UUID) (*bytes.Buffer, error) {
 	w := csv.NewWriter(b)
 	defer w.Flush()
 
-	// Заголовок — метаданные.
 	_ = w.Write([]string{"Session ID", session.ID.String()})
 	_ = w.Write([]string{"Quiz ID", session.QuizID.String()})
 	_ = w.Write([]string{"PIN", session.PIN})
@@ -105,9 +99,8 @@ func (s *ReportService) ExportCSV(id uuid.UUID) (*bytes.Buffer, error) {
 	if session.FinishedAt != nil && !session.FinishedAt.IsZero() {
 		_ = w.Write([]string{"Finished at", session.FinishedAt.UTC().Format(time.RFC3339)})
 	}
-	_ = w.Write([]string{}) // пустая строка-разделитель
+	_ = w.Write([]string{})
 
-	// Лидерборд — основная ценность для преподавателя.
 	_ = w.Write([]string{"Rank", "Nickname", "Score", "Correct", "Total", "Accuracy %"})
 
 	if len(session.ReportSnapshot) > 0 {

@@ -53,7 +53,7 @@ function handleUnauthorized(path: string) {
   if (typeof window !== 'undefined') {
     window.dispatchEvent(new CustomEvent('sb:unauthorized'));
     if (window.location.pathname !== '/login') {
-        const publicPaths = ['/login', '/register', '/forgot-password', '/reset-password'];
+        const publicPaths = ['/', '/login', '/register', '/forgot-password', '/reset-password'];
         const currentPath = window.location.pathname;
 
         if (!publicPaths.some(path => currentPath.startsWith(path))) {

@@ -22,9 +22,6 @@ type AuthService struct {
 	emailService EmailService
 }
 
-// NewAuthService — admins может быть nil; в этом случае никто не считается администратором.
-// Передаётся через DI из main.go, поскольку файл со списком администраторов
-// загружается на этапе сборки зависимостей.
 func NewAuthService(repo *repository.UserRepository, cfg *config.Config, adminList *admins.List, emailService EmailService) *AuthService {
 	return &AuthService{
 		repo:         repo,
@@ -71,10 +68,6 @@ func (s *AuthService) Register(name, email, password string) (*models.User, stri
 }
 
 func (s *AuthService) issueToken(user *models.User) (string, error) {
-	// Роль в JWT определяется так: если email пользователя присутствует в списке
-	// администраторов (admins.json), роль повышается до "admin"; иначе используется
-	// значение из БД. Это позволяет назначать администратора без изменения данных
-	// в таблице users — достаточно дописать строку в JSON-файл и перезапустить сервис.
 	role := user.Role
 	if s.admins != nil && s.admins.IsAdmin(user.Email) {
 		role = admins.RoleAdmin
@@ -110,10 +103,6 @@ func (s *AuthService) Login(email, password string) (*models.User, string, error
 	return user, tokenString, nil
 }
 
-// ChangePassword меняет пароль и возвращает свежий JWT.
-// Ротация токена на смене пароля — это (а) безопасность (старый токен формально остаётся
-// валидным, новый сразу заменит его на клиенте) и (б) UX: после изменения пароля у юзера
-// гарантированно полные 7 дней до следующего истечения, а не остаток от старого токена.
 func (s *AuthService) ChangePassword(userID uuid.UUID, oldPassword, newPassword string) (*models.User, string, error) {
 	user, err := s.repo.GetByID(userID)
 	if err != nil {
@@ -157,7 +146,6 @@ func (s *AuthService) ForgotPassword(email string) error {
 		return err
 	}
 
-	// --- НОВЫЙ БЛОК ОТПРАВКИ ПИСЬМА ---
 	if s.emailService != nil {
 		go func() {
 			err := s.emailService.SendPasswordResetEmail(user.Email, token)
@@ -166,7 +154,6 @@ func (s *AuthService) ForgotPassword(email string) error {
 			}
 		}()
 	}
-	// ----------------------------------
 
 	if os.Getenv("LOG_RESET_TOKENS") == "true" {
 		log.Printf("RESET PASSWORD TOKEN FOR %s: %s\n", email, token)

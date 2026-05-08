@@ -12,22 +12,18 @@ import (
 	"github.com/google/uuid"
 )
 
-// SessionService — доменная логика игровых сессий. Не знает про HTTP/JSON
-// детали realtime — общается с ним через интерфейс realtime.Client.
 type SessionService struct {
 	repo     *repository.SessionRepository
 	quizRepo *repository.QuizRepository
 	rt       realtime.Client
 }
 
-// JoinSessionQuizInfo — пользовательская информация о квизе для ответа на /api/sessions/join.
 type JoinSessionQuizInfo struct {
 	ID    string `json:"id"`
 	Title string `json:"title"`
 	Mode  string `json:"mode"`
 }
 
-// JoinSessionResult — ответ на /api/sessions/join (ждёт фронт).
 type JoinSessionResult struct {
 	SessionID     string              `json:"sessionId"`
 	ParticipantID string              `json:"participantId"`
@@ -43,7 +39,6 @@ func NewSessionService(
 	return &SessionService{repo: repo, quizRepo: quizRepo, rt: rt}
 }
 
-// CreateSession создаёт сессию: запрашивает у realtime PIN, сохраняет запись в БД.
 func (s *SessionService) CreateSession(quizID, hostID uuid.UUID, mode string) (*models.GameSession, error) {
 	quiz, err := s.quizRepo.GetByID(quizID)
 	if err != nil {
@@ -83,8 +78,6 @@ func (s *SessionService) CreateSession(quizID, hostID uuid.UUID, mode string) (*
 	return session, nil
 }
 
-// JoinSession проверяет PIN и возвращает данные для подключения студента.
-// Если БД временно "потеряла" сессию — пробует восстановить её из realtime.
 func (s *SessionService) JoinSession(pin string) (*JoinSessionResult, error) {
 	cleanPIN := sanitizePIN(pin)
 
@@ -121,7 +114,6 @@ func (s *SessionService) JoinSession(pin string) (*JoinSessionResult, error) {
 	}, nil
 }
 
-// restoreSessionFromRealtime — best-effort восстановление сессии, отсутствующей в БД.
 func (s *SessionService) restoreSessionFromRealtime(pin string) (*models.GameSession, error) {
 	info, err := s.rt.GetRoom(context.Background(), pin)
 	if err != nil {
@@ -156,7 +148,6 @@ func (s *SessionService) restoreSessionFromRealtime(pin string) (*models.GameSes
 	}
 
 	if err := s.repo.Create(restored); err != nil {
-		// Конкурентный запрос уже создал запись — читаем её.
 		if existing, getErr := s.repo.GetByPIN(pin); getErr == nil {
 			return existing, nil
 		}
@@ -165,8 +156,6 @@ func (s *SessionService) restoreSessionFromRealtime(pin string) (*models.GameSes
 	return restored, nil
 }
 
-// FetchLiveRoom — обёртка для handler-слоя: возвращает участников и индекс
-// текущего вопроса, если realtime доступен. Любая ошибка — пустой результат и false.
 func (s *SessionService) FetchLiveRoom(pin string) (realtime.RoomParticipants, bool) {
 	body, err := s.rt.GetParticipants(context.Background(), pin)
 	if err != nil {
@@ -192,8 +181,6 @@ func (s *SessionService) ChangeStatus(id uuid.UUID, newStatus string) error {
 	return s.repo.Update(session)
 }
 
-// buildCreateRoomRequest — чистый маппинг models.Quiz → realtime.CreateRoomRequest.
-// Вынесен в функцию, чтобы было легко тестировать без БД и HTTP.
 func buildCreateRoomRequest(quiz *models.Quiz, mode string) realtime.CreateRoomRequest {
 	req := realtime.CreateRoomRequest{
 		QuizID:    quiz.ID.String(),

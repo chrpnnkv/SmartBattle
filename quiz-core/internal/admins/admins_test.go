@@ -7,7 +7,6 @@ import (
 )
 
 func TestLoadFromFile_Missing(t *testing.T) {
-	// Отсутствующий файл не должен вызывать ошибку — просто пустой список.
 	l, err := LoadFromFile("/no/such/file.json")
 	if err != nil {
 		t.Fatalf("expected nil error for missing file, got %v", err)
@@ -29,11 +28,9 @@ func TestLoadFromFile_Valid(t *testing.T) {
 	if err != nil {
 		t.Fatalf("LoadFromFile: %v", err)
 	}
-	// Пустые строки игнорируются.
 	if l.Count() != 2 {
 		t.Errorf("expected 2 admins, got %d", l.Count())
 	}
-	// Регистронезависимое сравнение и нечувствительность к пробелам.
 	cases := map[string]bool{
 		"admin@hse.ru":        true,
 		"ADMIN@HSE.RU":        true,

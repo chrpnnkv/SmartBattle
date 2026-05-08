@@ -2,11 +2,6 @@ package service
 
 import "testing"
 
-// sanitizePIN — приватная функция в этом пакете. Тест проверяет, что любые
-// варианты ввода с фронта/реалтайма (с пробелами, дефисами, в нижнем регистре,
-// смешанные) приводятся к одной канонической форме, которая уходит в БД и
-// используется для GetByPIN. Если эта функция сломается, ни одна сессия
-// не сматчится между FE → Core → Realtime.
 func TestSanitizePIN(t *testing.T) {
 	cases := []struct {
 		name string
@@ -34,9 +29,6 @@ func TestSanitizePIN(t *testing.T) {
 	}
 }
 
-// Идемпотентность: пропустить уже очищенный PIN через sanitizePIN ещё раз
-// должно возвращать тот же результат. Это важно потому, что Realtime пишет PIN
-// в snapshot уже сырым, а Core снова применяет sanitizePIN при поиске сессии.
 func TestSanitizePINIdempotent(t *testing.T) {
 	cleaned := sanitizePIN("ab cd-12")
 	again := sanitizePIN(cleaned)

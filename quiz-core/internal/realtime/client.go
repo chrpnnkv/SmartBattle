@@ -13,29 +13,20 @@ import (
 	"github.com/google/uuid"
 )
 
-// Client — абстракция над realtime-сервером. Сервисный слой зависит только
-// от этого интерфейса; в тестах подставляется фейковая реализация.
 type Client interface {
-	// CreateRoom создаёт игровую комнату в realtime и возвращает её код (PIN).
 	CreateRoom(ctx context.Context, hostID uuid.UUID, req CreateRoomRequest) (CreateRoomResponse, error)
 
-	// GetRoom возвращает текущую информацию о комнате по PIN.
-	// Используется для self-healing восстановления сессии.
 	GetRoom(ctx context.Context, pin string) (RoomInfo, error)
 
-	// GetParticipants возвращает живой состав участников комнаты + индекс текущего вопроса.
 	GetParticipants(ctx context.Context, pin string) (RoomParticipants, error)
 }
 
-// HTTPClient — реализация Client поверх HTTP/JSON.
 type HTTPClient struct {
 	baseURL   string
 	jwtSecret string
 	http      *http.Client
 }
 
-// NewHTTPClient собирает клиента к realtime по baseURL.
-// jwtSecret используется для подписи service-to-service токена в CreateRoom.
 func NewHTTPClient(baseURL, jwtSecret string) *HTTPClient {
 	return &HTTPClient{
 		baseURL:   baseURL,
@@ -44,7 +35,6 @@ func NewHTTPClient(baseURL, jwtSecret string) *HTTPClient {
 	}
 }
 
-// ErrRoomNotFound — realtime ответил 404 на /api/rooms/:pin.
 var ErrRoomNotFound = errors.New("realtime: room not found")
 
 func (c *HTTPClient) CreateRoom(ctx context.Context, hostID uuid.UUID, req CreateRoomRequest) (CreateRoomResponse, error) {
@@ -136,7 +126,6 @@ func (c *HTTPClient) GetParticipants(ctx context.Context, pin string) (RoomParti
 	return body, nil
 }
 
-// signServiceToken — короткоживущий JWT для авторизации service-to-service вызова.
 func (c *HTTPClient) signServiceToken(hostID uuid.UUID) (string, error) {
 	token := jwt.NewWithClaims(jwt.SigningMethodHS256, jwt.MapClaims{
 		"user_id": hostID.String(),
