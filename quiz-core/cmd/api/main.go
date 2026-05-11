@@ -9,111 +9,85 @@ import (
 	"syscall"
 	"time"
 
-	_ "quiz-core/docs"
-	"quiz-core/internal/config"
-	"quiz-core/internal/models"
-	"quiz-core/internal/repository"
-	"quiz-core/internal/service"
-	"quiz-core/internal/transport/rest/handler"
-	"quiz-core/internal/transport/rest/middleware"
-	"quiz-core/pkg/db"
-
-	"github.com/go-chi/chi/v5"
-	chiMiddleware "github.com/go-chi/chi/v5/middleware"
-	"github.com/go-chi/cors"
-	httpSwagger "github.com/swaggo/http-swagger/v2"
+	"github.com/chrpnnkv/SmartBattle/internal/admins"
+	"github.com/chrpnnkv/SmartBattle/internal/config"
+	"github.com/chrpnnkv/SmartBattle/internal/realtime"
+	"github.com/chrpnnkv/SmartBattle/internal/repository"
+	"github.com/chrpnnkv/SmartBattle/internal/service"
+	transportHttp "github.com/chrpnnkv/SmartBattle/internal/transport/http"
+	"github.com/chrpnnkv/SmartBattle/internal/transport/http/handlers"
 )
 
-// @title           Quiz Platform Core API
+// @title           Smart Battle API
 // @version         1.0
-// @description     REST API для управления квизами, пользователями и отчетами.
-// @termsOfService  http://swagger.io/terms/
-
-// @contact.name    API Support
-// @contact.email   support@quiz.com
-
-// @license.name    Apache 2.0
-// @license.url     http://www.apache.org/licenses/LICENSE-2.0.html
-
+// @description     Backend Core для платформы академических квизов
 // @host            localhost:8080
 // @BasePath        /
-
 // @securityDefinitions.apikey BearerAuth
 // @in header
 // @name Authorization
-
+// @securityDefinitions.apikey InternalSecretAuth
+// @in header
+// @name X-Internal-Secret
 func main() {
-	cfg := config.LoadConfig()
-	database := db.Connect(cfg.DBUrl)
+	cfg := config.Load()
+	if err := cfg.Validate(); err != nil {
+		log.Fatalf("конфигурация невалидна: %v", err)
+	}
+	db := repository.NewPostgresDB(cfg)
 
-	database.AutoMigrate(&models.User{}, &models.Quiz{}, &models.Question{}, &models.Option{}, &models.GameSession{})
+	userRepo := repository.NewUserRepository(db)
+	quizRepo := repository.NewQuizRepository(db)
+	reportRepo := repository.NewReportRepository(db)
+	sessionRepo := repository.NewSessionRepository(db)
 
-	repo := repository.NewRepository(database)
-	svc := service.NewService(repo, cfg)
-	h := handler.NewHandler(svc, cfg)
+	// Список администраторов: загружается из statically-managed JSON-файла.
+	// Отсутствие файла — допустимый режим: никто не считается администратором.
+	adminList, err := admins.LoadFromFile(cfg.AdminsFile)
+	if err != nil {
+		log.Fatalf("не удалось загрузить список администраторов из %s: %v", cfg.AdminsFile, err)
+	}
 
-	r := chi.NewRouter()
-	r.Use(chiMiddleware.Logger)
-	r.Use(chiMiddleware.Recoverer)
-	r.Use(cors.Handler(cors.Options{
-		AllowedOrigins: []string{"*"},
-		AllowedMethods: []string{"GET", "POST", "PUT", "DELETE", "OPTIONS"},
-		AllowedHeaders: []string{"Accept", "Authorization", "Content-Type", "X-CSRF-Token"},
-	}))
+	emailSvc := service.NewSMTPEmailService(cfg)
+	authService := service.NewAuthService(userRepo, cfg, adminList, emailSvc)
+	quizService := service.NewQuizService(quizRepo)
+	reportService := service.NewReportService(reportRepo)
 
-	// Swagger UI
-	r.Get("/swagger/*", httpSwagger.Handler(
-		httpSwagger.URL("http://localhost:8080/swagger/doc.json"), // Ссылка на spec
-	))
+	// HTTP-клиент к realtime — единственная точка интеграции, скрытая за интерфейсом.
+	// В тестах SessionService можно подменить на фейк (см. internal/realtime/Client).
+	rtClient := realtime.NewHTTPClient(cfg.RealtimeURL, cfg.JWTSecret)
+	sessionService := service.NewSessionService(sessionRepo, quizRepo, rtClient)
 
-	r.Post("/auth/register", h.Register)
-	r.Post("/auth/login", h.Login)
-	r.Post("/auth/forgot-password", h.ForgotPassword)
-	r.Post("/auth/reset-password", h.ResetPassword)
+	authHandler := handlers.NewAuthHandler(authService)
+	quizHandler := handlers.NewQuizHandler(quizService)
+	reportHandler := handlers.NewReportHandler(reportService, quizService)
+	sessionHandler := handlers.NewSessionHandler(sessionService, quizService)
+	uploadHandler := handlers.NewUploadHandler(cfg.UploadsDir)
 
-	r.Group(func(r chi.Router) {
-		r.Use(middleware.AuthMiddleware(cfg.JWTSecret))
-
-		r.Get("/api/me", h.GetMe)
-		r.Post("/auth/change-password", h.ChangePassword)
-
-		r.Post("/api/quizzes", h.CreateQuiz)
-		r.Put("/api/quizzes/{id}", h.UpdateQuiz)
-		r.Get("/api/quizzes", h.ListQuizzes)
-		r.Get("/api/quizzes/public", h.ListPublicQuizzes)
-		r.Get("/api/quizzes/{id}", h.GetQuiz)
-		r.Delete("/api/quizzes/{id}", h.DeleteQuiz)
-
-		r.Get("/api/reports", h.ListReports)
-		r.Get("/api/reports/{id}/export", h.ExportReportCSV)
-	})
-
-	r.Group(func(r chi.Router) {
-		r.Get("/internal/quizzes/{id}", h.InternalGetQuiz)
-		r.Post("/internal/reports", h.InternalSaveReport)
-	})
+	router := transportHttp.SetupRouter(cfg, authHandler, quizHandler, reportHandler, sessionHandler, uploadHandler)
 
 	srv := &http.Server{
 		Addr:    ":" + cfg.Port,
-		Handler: r,
+		Handler: router,
 	}
 
 	go func() {
-		log.Printf("Server starting on port %s", cfg.Port)
-		log.Printf("Swagger UI: http://localhost:%s/swagger/index.html", cfg.Port)
 		if err := srv.ListenAndServe(); err != nil && err != http.ErrServerClosed {
-			log.Fatalf("Server failed: %v", err)
+			log.Fatalf("listen: %s\n", err)
 		}
 	}()
 
+	log.Printf("Server starting on port %s", cfg.Port)
+
 	quit := make(chan os.Signal, 1)
-	signal.Notify(quit, os.Interrupt, syscall.SIGTERM)
+	signal.Notify(quit, syscall.SIGINT, syscall.SIGTERM)
 	<-quit
+	log.Println("Shutting down server...")
 
 	ctx, cancel := context.WithTimeout(context.Background(), 5*time.Second)
 	defer cancel()
 	if err := srv.Shutdown(ctx); err != nil {
-		log.Fatalf("Server forced to shutdown: %v", err)
+		log.Fatal("Server forced to shutdown:", err)
 	}
-	log.Println("Server exited properly")
+	log.Println("Server exiting")
 }

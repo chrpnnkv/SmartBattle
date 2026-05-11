@@ -1,17 +1,9 @@
 {
     "swagger": "2.0",
     "info": {
-        "description": "REST API для управления квизами, пользователями и отчетами.",
-        "title": "Quiz Platform Core API",
-        "termsOfService": "http://swagger.io/terms/",
-        "contact": {
-            "name": "API Support",
-            "email": "support@quiz.com"
-        },
-        "license": {
-            "name": "Apache 2.0",
-            "url": "http://www.apache.org/licenses/LICENSE-2.0.html"
-        },
+        "description": "Backend Core для платформы академических квизов",
+        "title": "Smart Battle API",
+        "contact": {},
         "version": "1.0"
     },
     "host": "localhost:8080",
@@ -24,7 +16,6 @@
                         "BearerAuth": []
                     }
                 ],
-                "description": "Возвращает данные текущего авторизованного пользователя",
                 "produces": [
                     "application/json"
                 ],
@@ -36,253 +27,9 @@
                     "200": {
                         "description": "OK",
                         "schema": {
-                            "$ref": "#/definitions/models.User"
+                            "type": "object",
+                            "additionalProperties": true
                         }
-                    },
-                    "401": {
-                        "description": "Unauthorized",
-                        "schema": {
-                            "type": "string"
-                        }
-                    },
-                    "404": {
-                        "description": "Not Found",
-                        "schema": {
-                            "type": "string"
-                        }
-                    }
-                }
-            }
-        },
-        "/api/quizzes": {
-            "get": {
-                "security": [
-                    {
-                        "BearerAuth": []
-                    }
-                ],
-                "produces": [
-                    "application/json"
-                ],
-                "tags": [
-                    "Quizzes"
-                ],
-                "summary": "Список квизов преподавателя",
-                "parameters": [
-                    {
-                        "type": "integer",
-                        "description": "Page number",
-                        "name": "page",
-                        "in": "query"
-                    },
-                    {
-                        "type": "integer",
-                        "description": "Items per page",
-                        "name": "limit",
-                        "in": "query"
-                    }
-                ],
-                "responses": {
-                    "200": {
-                        "description": "OK",
-                        "schema": {
-                            "type": "array",
-                            "items": {
-                                "$ref": "#/definitions/models.Quiz"
-                            }
-                        }
-                    }
-                }
-            },
-            "post": {
-                "security": [
-                    {
-                        "BearerAuth": []
-                    }
-                ],
-                "description": "Создает квиз с вопросами и вариантами ответов",
-                "consumes": [
-                    "application/json"
-                ],
-                "produces": [
-                    "application/json"
-                ],
-                "tags": [
-                    "Quizzes"
-                ],
-                "summary": "Создание Квиза",
-                "parameters": [
-                    {
-                        "description": "Структура квиза",
-                        "name": "input",
-                        "in": "body",
-                        "required": true,
-                        "schema": {
-                            "$ref": "#/definitions/models.Quiz"
-                        }
-                    }
-                ],
-                "responses": {
-                    "200": {
-                        "description": "OK",
-                        "schema": {
-                            "$ref": "#/definitions/models.Quiz"
-                        }
-                    },
-                    "400": {
-                        "description": "Validation Error",
-                        "schema": {
-                            "type": "string"
-                        }
-                    }
-                }
-            }
-        },
-        "/api/quizzes/public": {
-            "get": {
-                "security": [
-                    {
-                        "BearerAuth": []
-                    }
-                ],
-                "produces": [
-                    "application/json"
-                ],
-                "tags": [
-                    "Quizzes"
-                ],
-                "summary": "Публичная библиотека квизов",
-                "parameters": [
-                    {
-                        "type": "integer",
-                        "description": "Page number",
-                        "name": "page",
-                        "in": "query"
-                    },
-                    {
-                        "type": "integer",
-                        "description": "Items per page",
-                        "name": "limit",
-                        "in": "query"
-                    }
-                ],
-                "responses": {
-                    "200": {
-                        "description": "OK",
-                        "schema": {
-                            "type": "array",
-                            "items": {
-                                "$ref": "#/definitions/models.Quiz"
-                            }
-                        }
-                    }
-                }
-            }
-        },
-        "/api/quizzes/{id}": {
-            "get": {
-                "security": [
-                    {
-                        "BearerAuth": []
-                    }
-                ],
-                "produces": [
-                    "application/json"
-                ],
-                "tags": [
-                    "Quizzes"
-                ],
-                "summary": "Получить квиз по ID",
-                "parameters": [
-                    {
-                        "type": "integer",
-                        "description": "Quiz ID",
-                        "name": "id",
-                        "in": "path",
-                        "required": true
-                    }
-                ],
-                "responses": {
-                    "200": {
-                        "description": "OK",
-                        "schema": {
-                            "$ref": "#/definitions/models.Quiz"
-                        }
-                    }
-                }
-            },
-            "put": {
-                "security": [
-                    {
-                        "BearerAuth": []
-                    }
-                ],
-                "description": "Полностью заменяет вопросы квиза на новые",
-                "consumes": [
-                    "application/json"
-                ],
-                "produces": [
-                    "application/json"
-                ],
-                "tags": [
-                    "Quizzes"
-                ],
-                "summary": "Обновление Квиза",
-                "parameters": [
-                    {
-                        "type": "integer",
-                        "description": "Quiz ID",
-                        "name": "id",
-                        "in": "path",
-                        "required": true
-                    },
-                    {
-                        "description": "Новая структура",
-                        "name": "input",
-                        "in": "body",
-                        "required": true,
-                        "schema": {
-                            "$ref": "#/definitions/models.Quiz"
-                        }
-                    }
-                ],
-                "responses": {
-                    "200": {
-                        "description": "OK",
-                        "schema": {
-                            "$ref": "#/definitions/models.Quiz"
-                        }
-                    },
-                    "400": {
-                        "description": "Error",
-                        "schema": {
-                            "type": "string"
-                        }
-                    }
-                }
-            },
-            "delete": {
-                "security": [
-                    {
-                        "BearerAuth": []
-                    }
-                ],
-                "tags": [
-                    "Quizzes"
-                ],
-                "summary": "Удалить квиз",
-                "parameters": [
-                    {
-                        "type": "integer",
-                        "description": "Quiz ID",
-                        "name": "id",
-                        "in": "path",
-                        "required": true
-                    }
-                ],
-                "responses": {
-                    "200": {
-                        "description": "OK"
                     }
                 }
             }
@@ -307,8 +54,41 @@
                         "schema": {
                             "type": "array",
                             "items": {
-                                "$ref": "#/definitions/models.GameSession"
+                                "$ref": "#/definitions/internal_transport_http_handlers.GameReportDTO"
                             }
+                        }
+                    }
+                }
+            }
+        },
+        "/api/reports/{id}": {
+            "get": {
+                "security": [
+                    {
+                        "BearerAuth": []
+                    }
+                ],
+                "produces": [
+                    "application/json"
+                ],
+                "tags": [
+                    "Analytics"
+                ],
+                "summary": "Детальный отчет по игре",
+                "parameters": [
+                    {
+                        "type": "string",
+                        "description": "ID Сессии",
+                        "name": "id",
+                        "in": "path",
+                        "required": true
+                    }
+                ],
+                "responses": {
+                    "200": {
+                        "description": "OK",
+                        "schema": {
+                            "$ref": "#/definitions/internal_transport_http_handlers.GameReportDTO"
                         }
                     }
                 }
@@ -331,7 +111,117 @@
                 "parameters": [
                     {
                         "type": "string",
-                        "description": "Session UUID",
+                        "description": "ID Сессии",
+                        "name": "id",
+                        "in": "path",
+                        "required": true
+                    }
+                ],
+                "responses": {
+                    "200": {
+                        "description": "report.csv",
+                        "schema": {
+                            "type": "file"
+                        }
+                    }
+                }
+            }
+        },
+        "/api/sessions": {
+            "post": {
+                "security": [
+                    {
+                        "BearerAuth": []
+                    }
+                ],
+                "consumes": [
+                    "application/json"
+                ],
+                "produces": [
+                    "application/json"
+                ],
+                "tags": [
+                    "Sessions"
+                ],
+                "summary": "Создать игровую сессию",
+                "parameters": [
+                    {
+                        "description": "ID квиза",
+                        "name": "request",
+                        "in": "body",
+                        "required": true,
+                        "schema": {
+                            "$ref": "#/definitions/internal_transport_http_handlers.CreateSessionReq"
+                        }
+                    }
+                ],
+                "responses": {
+                    "201": {
+                        "description": "Created",
+                        "schema": {
+                            "type": "object",
+                            "additionalProperties": true
+                        }
+                    }
+                }
+            }
+        },
+        "/api/sessions/answer": {
+            "post": {
+                "tags": [
+                    "Sessions"
+                ],
+                "summary": "Отправить ответ (Студент)",
+                "responses": {}
+            }
+        },
+        "/api/sessions/join": {
+            "post": {
+                "consumes": [
+                    "application/json"
+                ],
+                "produces": [
+                    "application/json"
+                ],
+                "tags": [
+                    "Sessions"
+                ],
+                "summary": "Присоединиться к игре (Студент)",
+                "parameters": [
+                    {
+                        "description": "PIN код и никнейм",
+                        "name": "request",
+                        "in": "body",
+                        "required": true,
+                        "schema": {
+                            "$ref": "#/definitions/internal_transport_http_handlers.JoinSessionReq"
+                        }
+                    }
+                ],
+                "responses": {
+                    "200": {
+                        "description": "OK",
+                        "schema": {
+                            "type": "object",
+                            "additionalProperties": true
+                        }
+                    }
+                }
+            }
+        },
+        "/api/sessions/{id}": {
+            "get": {
+                "produces": [
+                    "application/json"
+                ],
+                "tags": [
+                    "Sessions"
+                ],
+                "summary": "Получить статус сессии",
+                "parameters": [
+                    {
+                        "type": "string",
+                        "description": "ID Сессии",
                         "name": "id",
                         "in": "path",
                         "required": true
@@ -341,10 +231,53 @@
                     "200": {
                         "description": "OK",
                         "schema": {
-                            "type": "file"
+                            "type": "object",
+                            "additionalProperties": true
                         }
                     }
                 }
+            }
+        },
+        "/api/sessions/{id}/end": {
+            "post": {
+                "security": [
+                    {
+                        "BearerAuth": []
+                    }
+                ],
+                "tags": [
+                    "Sessions"
+                ],
+                "summary": "Завершить игру",
+                "responses": {}
+            }
+        },
+        "/api/sessions/{id}/next": {
+            "post": {
+                "security": [
+                    {
+                        "BearerAuth": []
+                    }
+                ],
+                "tags": [
+                    "Sessions"
+                ],
+                "summary": "Следующий вопрос",
+                "responses": {}
+            }
+        },
+        "/api/sessions/{id}/start": {
+            "post": {
+                "security": [
+                    {
+                        "BearerAuth": []
+                    }
+                ],
+                "tags": [
+                    "Sessions"
+                ],
+                "summary": "Начать игру",
+                "responses": {}
             }
         },
         "/auth/change-password": {
@@ -357,37 +290,30 @@
                 "consumes": [
                     "application/json"
                 ],
+                "produces": [
+                    "application/json"
+                ],
                 "tags": [
                     "Auth"
                 ],
                 "summary": "Смена пароля",
                 "parameters": [
                     {
-                        "description": "Смена пароля",
-                        "name": "input",
+                        "description": "Данные для смены пароля",
+                        "name": "request",
                         "in": "body",
                         "required": true,
                         "schema": {
-                            "type": "object",
-                            "properties": {
-                                "new_password": {
-                                    "type": "string"
-                                },
-                                "old_password": {
-                                    "type": "string"
-                                }
-                            }
+                            "$ref": "#/definitions/internal_transport_http_handlers.ChangePasswordReq"
                         }
                     }
                 ],
                 "responses": {
                     "200": {
-                        "description": "OK"
-                    },
-                    "400": {
-                        "description": "Error",
+                        "description": "OK",
                         "schema": {
-                            "type": "string"
+                            "type": "object",
+                            "additionalProperties": true
                         }
                     }
                 }
@@ -398,31 +324,30 @@
                 "consumes": [
                     "application/json"
                 ],
+                "produces": [
+                    "application/json"
+                ],
                 "tags": [
                     "Auth"
                 ],
                 "summary": "Запрос на сброс пароля",
                 "parameters": [
                     {
-                        "description": "Email",
-                        "name": "input",
+                        "description": "Email пользователя",
+                        "name": "request",
                         "in": "body",
                         "required": true,
                         "schema": {
-                            "type": "object",
-                            "properties": {
-                                "email": {
-                                    "type": "string"
-                                }
-                            }
+                            "$ref": "#/definitions/internal_transport_http_handlers.ForgotPasswordReq"
                         }
                     }
                 ],
                 "responses": {
                     "200": {
-                        "description": "Instructions sent",
+                        "description": "OK",
                         "schema": {
-                            "type": "string"
+                            "type": "object",
+                            "additionalProperties": true
                         }
                     }
                 }
@@ -430,7 +355,6 @@
         },
         "/auth/login": {
             "post": {
-                "description": "Возвращает JWT токен",
                 "consumes": [
                     "application/json"
                 ],
@@ -443,20 +367,12 @@
                 "summary": "Вход в систему",
                 "parameters": [
                     {
-                        "description": "Данные входа",
-                        "name": "input",
+                        "description": "Учетные данные",
+                        "name": "request",
                         "in": "body",
                         "required": true,
                         "schema": {
-                            "type": "object",
-                            "properties": {
-                                "email": {
-                                    "type": "string"
-                                },
-                                "password": {
-                                    "type": "string"
-                                }
-                            }
+                            "$ref": "#/definitions/internal_transport_http_handlers.LoginReq"
                         }
                     }
                 ],
@@ -465,33 +381,7 @@
                         "description": "OK",
                         "schema": {
                             "type": "object",
-                            "additionalProperties": {
-                                "allOf": [
-                                    {
-                                        "type": "string"
-                                    },
-                                    {
-                                        "type": "object",
-                                        "properties": {
-                                            "token": {
-                                                "type": "string"
-                                            }
-                                        }
-                                    }
-                                ]
-                            }
-                        }
-                    },
-                    "400": {
-                        "description": "Bad Request",
-                        "schema": {
-                            "type": "string"
-                        }
-                    },
-                    "401": {
-                        "description": "Unauthorized",
-                        "schema": {
-                            "type": "string"
+                            "additionalProperties": true
                         }
                     }
                 }
@@ -499,7 +389,6 @@
         },
         "/auth/register": {
             "post": {
-                "description": "Создает аккаунт преподавателя",
                 "consumes": [
                     "application/json"
                 ],
@@ -513,36 +402,20 @@
                 "parameters": [
                     {
                         "description": "Данные регистрации",
-                        "name": "input",
+                        "name": "request",
                         "in": "body",
                         "required": true,
                         "schema": {
-                            "type": "object",
-                            "properties": {
-                                "email": {
-                                    "type": "string"
-                                },
-                                "password": {
-                                    "type": "string"
-                                }
-                            }
+                            "$ref": "#/definitions/internal_transport_http_handlers.RegisterReq"
                         }
                     }
                 ],
                 "responses": {
                     "201": {
-                        "description": "Created"
-                    },
-                    "400": {
-                        "description": "Bad Request",
+                        "description": "Created",
                         "schema": {
-                            "type": "string"
-                        }
-                    },
-                    "500": {
-                        "description": "Internal Server Error",
-                        "schema": {
-                            "type": "string"
+                            "type": "object",
+                            "additionalProperties": true
                         }
                     }
                 }
@@ -553,72 +426,30 @@
                 "consumes": [
                     "application/json"
                 ],
+                "produces": [
+                    "application/json"
+                ],
                 "tags": [
                     "Auth"
                 ],
                 "summary": "Установка нового пароля по токену",
                 "parameters": [
                     {
-                        "description": "Reset Data",
-                        "name": "input",
+                        "description": "Токен и новый пароль",
+                        "name": "request",
                         "in": "body",
                         "required": true,
                         "schema": {
-                            "type": "object",
-                            "properties": {
-                                "new_password": {
-                                    "type": "string"
-                                },
-                                "token": {
-                                    "type": "string"
-                                }
-                            }
+                            "$ref": "#/definitions/internal_transport_http_handlers.ResetPasswordReq"
                         }
-                    }
-                ],
-                "responses": {
-                    "200": {
-                        "description": "OK"
-                    },
-                    "400": {
-                        "description": "Error",
-                        "schema": {
-                            "type": "string"
-                        }
-                    }
-                }
-            }
-        },
-        "/internal/quizzes/{id}": {
-            "get": {
-                "produces": [
-                    "application/json"
-                ],
-                "tags": [
-                    "Internal"
-                ],
-                "summary": "INTERNAL: Получить квиз (для движка)",
-                "parameters": [
-                    {
-                        "type": "integer",
-                        "description": "Quiz ID",
-                        "name": "id",
-                        "in": "path",
-                        "required": true
-                    },
-                    {
-                        "type": "string",
-                        "description": "Secret Key",
-                        "name": "X-Internal-Secret",
-                        "in": "header",
-                        "required": true
                     }
                 ],
                 "responses": {
                     "200": {
                         "description": "OK",
                         "schema": {
-                            "$ref": "#/definitions/models.Quiz"
+                            "type": "object",
+                            "additionalProperties": true
                         }
                     }
                 }
@@ -626,25 +457,29 @@
         },
         "/internal/reports": {
             "post": {
+                "security": [
+                    {
+                        "InternalSecretAuth": []
+                    }
+                ],
+                "consumes": [
+                    "application/json"
+                ],
+                "produces": [
+                    "application/json"
+                ],
                 "tags": [
                     "Internal"
                 ],
                 "summary": "INTERNAL: Сохранить результаты игры",
                 "parameters": [
                     {
-                        "type": "string",
-                        "description": "Secret Key",
-                        "name": "X-Internal-Secret",
-                        "in": "header",
-                        "required": true
-                    },
-                    {
-                        "description": "Snapshot",
-                        "name": "input",
+                        "description": "Снапшот сессии",
+                        "name": "request",
                         "in": "body",
                         "required": true,
                         "schema": {
-                            "$ref": "#/definitions/models.GameSession"
+                            "$ref": "#/definitions/github_com_chrpnnkv_SmartBattle_internal_models.GameSession"
                         }
                     }
                 ],
@@ -657,26 +492,179 @@
         }
     },
     "definitions": {
-        "models.GameSession": {
-            "type": "object"
-        },
-        "models.Quiz": {
-            "type": "object"
-        },
-        "models.User": {
+        "github_com_chrpnnkv_SmartBattle_internal_models.GameSession": {
             "type": "object",
             "properties": {
-                "created_at": {
+                "finishedAt": {
                     "type": "string"
                 },
-                "email": {
+                "hostId": {
                     "type": "string"
                 },
                 "id": {
                     "type": "string"
                 },
-                "role": {
+                "pin": {
                     "type": "string"
+                },
+                "quizId": {
+                    "type": "string"
+                },
+                "reportSnapshot": {
+                    "type": "array",
+                    "items": {
+                        "type": "integer"
+                    }
+                },
+                "startedAt": {
+                    "type": "string"
+                },
+                "status": {
+                    "type": "string"
+                }
+            }
+        },
+        "internal_transport_http_handlers.ChangePasswordReq": {
+            "type": "object",
+            "required": [
+                "newPassword",
+                "oldPassword"
+            ],
+            "properties": {
+                "newPassword": {
+                    "type": "string",
+                    "minLength": 6,
+                    "example": "newsecret123"
+                },
+                "oldPassword": {
+                    "type": "string",
+                    "example": "secret123"
+                }
+            }
+        },
+        "internal_transport_http_handlers.CreateSessionReq": {
+            "type": "object",
+            "required": [
+                "quizId"
+            ],
+            "properties": {
+                "quizId": {
+                    "type": "string"
+                }
+            }
+        },
+        "internal_transport_http_handlers.ForgotPasswordReq": {
+            "type": "object",
+            "required": [
+                "email"
+            ],
+            "properties": {
+                "email": {
+                    "type": "string",
+                    "example": "teacher@hse.ru"
+                }
+            }
+        },
+        "internal_transport_http_handlers.GameReportDTO": {
+            "type": "object",
+            "properties": {
+                "finishedAt": {
+                    "type": "string"
+                },
+                "hostId": {
+                    "type": "string"
+                },
+                "id": {
+                    "type": "string"
+                },
+                "pin": {
+                    "type": "string"
+                },
+                "quizId": {
+                    "type": "string"
+                },
+                "reportSnapshot": {
+                    "type": "object",
+                    "additionalProperties": true
+                },
+                "startedAt": {
+                    "type": "string"
+                },
+                "status": {
+                    "type": "string"
+                }
+            }
+        },
+        "internal_transport_http_handlers.JoinSessionReq": {
+            "type": "object",
+            "required": [
+                "nickname",
+                "pin"
+            ],
+            "properties": {
+                "nickname": {
+                    "type": "string"
+                },
+                "pin": {
+                    "type": "string"
+                }
+            }
+        },
+        "internal_transport_http_handlers.LoginReq": {
+            "type": "object",
+            "required": [
+                "email",
+                "password"
+            ],
+            "properties": {
+                "email": {
+                    "type": "string",
+                    "example": "teacher@hse.ru"
+                },
+                "password": {
+                    "type": "string",
+                    "example": "secret123"
+                }
+            }
+        },
+        "internal_transport_http_handlers.RegisterReq": {
+            "type": "object",
+            "required": [
+                "email",
+                "name",
+                "password"
+            ],
+            "properties": {
+                "email": {
+                    "type": "string",
+                    "example": "teacher@hse.ru"
+                },
+                "name": {
+                    "type": "string",
+                    "example": "Тимофей"
+                },
+                "password": {
+                    "type": "string",
+                    "minLength": 6,
+                    "example": "secret123"
+                }
+            }
+        },
+        "internal_transport_http_handlers.ResetPasswordReq": {
+            "type": "object",
+            "required": [
+                "newPassword",
+                "token"
+            ],
+            "properties": {
+                "newPassword": {
+                    "type": "string",
+                    "minLength": 6,
+                    "example": "newsecret123"
+                },
+                "token": {
+                    "type": "string",
+                    "example": "uuid-token-from-log"
                 }
             }
         }
@@ -685,6 +673,11 @@
         "BearerAuth": {
             "type": "apiKey",
             "name": "Authorization",
+            "in": "header"
+        },
+        "InternalSecretAuth": {
+            "type": "apiKey",
+            "name": "X-Internal-Secret",
             "in": "header"
         }
     }

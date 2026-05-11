@@ -1,0 +1,210 @@
+.page {
+  min-height: 100vh;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  background: #eef2ff;
+  padding: 24px;
+}
+
+.card {
+  background: var(--color-surface);
+  border-radius: var(--radius-xl);
+  padding: 36px 32px;
+  max-width: 480px;
+  width: 100%;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 24px;
+  box-shadow: var(--shadow-lg);
+  border: 1px solid var(--color-border);
+  animation: slideUp 0.4s cubic-bezier(0.16, 1, 0.3, 1) both;
+}
+
+@keyframes slideUp {
+  from { opacity: 0; transform: translateY(20px); }
+}
+
+.resultBlock {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 8px;
+  text-align: center;
+  width: 100%;
+}
+
+.trophyIcon {
+  width: 68px;
+  height: 68px;
+  background: linear-gradient(135deg, #fef3c7, #fde68a);
+  border-radius: 50%;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  color: #d97706;
+  margin-bottom: 4px;
+}
+
+.title {
+  font-family: var(--font-display);
+  font-size: 24px;
+  font-weight: 800;
+  color: var(--color-text-primary);
+  letter-spacing: -0.02em;
+}
+
+.playerName {
+  font-size: 15px;
+  font-weight: 600;
+  color: var(--color-primary);
+}
+
+.myResult {
+  display: flex;
+  gap: 24px;
+  justify-content: center;
+  margin-top: 8px;
+  padding: 16px 28px;
+  background: var(--color-primary-soft);
+  border: 1.5px solid var(--color-primary-light);
+  border-radius: var(--radius-lg);
+  width: 100%;
+}
+
+.myRank, .myScore {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 2px;
+}
+
+.myRankNum, .myScoreNum {
+  font-family: var(--font-display);
+  font-size: 32px;
+  font-weight: 800;
+  color: var(--color-primary);
+  letter-spacing: -0.03em;
+  line-height: 1;
+}
+
+.myRankLabel, .myScoreLabel {
+  font-size: 12px;
+  color: var(--color-text-muted);
+  font-weight: 500;
+  text-transform: uppercase;
+  letter-spacing: 0.05em;
+}
+
+.leaderboard {
+  width: 100%;
+  display: flex;
+  flex-direction: column;
+  gap: 12px;
+}
+
+.leaderTitle {
+  font-size: 14px;
+  font-weight: 700;
+  color: var(--color-text-secondary);
+  text-transform: uppercase;
+  letter-spacing: 0.06em;
+  text-align: center;
+}
+
+.leaderList {
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+}
+
+.leaderRow {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  padding: 10px 12px;
+  border-radius: var(--radius-md);
+  background: var(--color-bg);
+  transition: background var(--transition-fast);
+  animation: fadeIn 0.3s ease both;
+}
+
+.leaderRow:nth-child(1) { animation-delay: 0ms; }
+.leaderRow:nth-child(2) { animation-delay: 40ms; }
+.leaderRow:nth-child(3) { animation-delay: 80ms; }
+.leaderRow:nth-child(n+4) { animation-delay: 120ms; }
+
+@keyframes fadeIn {
+  from { opacity: 0; transform: translateX(8px); }
+}
+
+.leaderRowMe {
+  background: var(--color-primary-soft);
+  border: 1.5px solid var(--color-primary-light);
+}
+
+.leaderRank {
+  width: 24px;
+  height: 24px;
+  border-radius: 50%;
+  background: var(--color-border);
+  color: var(--color-text-secondary);
+  font-size: 12px;
+  font-weight: 800;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  flex-shrink: 0;
+}
+
+.rankGold    { background: #fde68a; color: #92400e; }
+.rankSilver  { background: #e2e8f0; color: #475569; }
+.rankBronze  { background: #fed7aa; color: #7c2d12; }
+
+.leaderAvatar {
+  width: 28px;
+  height: 28px;
+  border-radius: 50%;
+  color: #fff;
+  font-size: 10px;
+  font-weight: 800;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  flex-shrink: 0;
+}
+
+.leaderName {
+  flex: 1;
+  font-size: 14px;
+  font-weight: 600;
+  color: var(--color-text-primary);
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  min-width: 0;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
+.meTag {
+  font-size: 10px;
+  font-weight: 700;
+  background: var(--color-primary);
+  color: #fff;
+  padding: 2px 6px;
+  border-radius: var(--radius-full);
+  text-transform: uppercase;
+  letter-spacing: 0.04em;
+  flex-shrink: 0;
+}
+
+.leaderScore {
+  font-size: 14px;
+  font-weight: 800;
+  font-family: var(--font-display);
+  color: var(--color-text-primary);
+  flex-shrink: 0;
+}

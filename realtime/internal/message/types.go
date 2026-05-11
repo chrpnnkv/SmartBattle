@@ -1,0 +1,261 @@
+package message
+
+import "time"
+
+const (
+	// TypeJoin — вход в игровую комнату.
+	TypeJoin = "join"
+	// TypeAnswer — отправка ответа студентом.
+	TypeAnswer = "answer"
+	// TypeStartSession — команда преподавателя: начать сессию.
+	TypeStartSession = "start_session"
+	// TypeNextQuestion — команда преподавателя: перейти к следующему вопросу.
+	TypeNextQuestion = "next_question"
+	// TypeFinishSession — команда преподавателя: завершить сессию.
+	TypeFinishSession = "finish_session"
+	// TypePing — heartbeat от клиента.
+	TypePing = "ping"
+	// TypeEndQuestion — команда преподавателя: завершить текущий вопрос и показать статистику.
+	TypeEndQuestion = "end_question"
+)
+
+const (
+	// TypeJoined — подтверждение входа в комнату.
+	TypeJoined = "joined"
+	// TypeParticipantJoined — уведомление о подключении нового участника.
+	TypeParticipantJoined = "participant_joined"
+	// TypeParticipantLeft — уведомление об отключении участника.
+	TypeParticipantLeft = "participant_left"
+	// TypeSessionStarted — сессия квиза запущена.
+	TypeSessionStarted = "session_started"
+	// TypeQuestion — текущий вопрос для всех участников (= "question_started" для фронтенда).
+	TypeQuestion = "question_started"
+	// TypeAnswerReceived — уведомление преподавателю о поступившем ответе.
+	TypeAnswerReceived = "answer_received"
+	// TypeAnswerResult — результат ответа студенту (правильно/неправильно).
+	TypeAnswerResult = "answer_result"
+	// TypeQuestionResults — итоги по вопросу (= "question_ended" для фронтенда).
+	TypeQuestionResults = "question_ended"
+	// TypeLeaderboard — текущий рейтинг участников.
+	TypeLeaderboard = "leaderboard"
+	// TypeSessionFinished — игровая сессия завершена.
+	TypeSessionFinished = "session_finished"
+	// TypeError — сообщение об ошибке.
+	TypeError = "error"
+	// TypePong — ответ на heartbeat.
+	TypePong = "pong"
+)
+
+// Роли участников
+const (
+	RoleTeacher = "teacher"
+	RoleStudent = "student"
+)
+
+// Коды ошибок
+const (
+	ErrCodeInvalidToken      = "invalid_token"
+	ErrCodeRoomNotFound      = "room_not_found"
+	ErrCodeRoomFull          = "room_full"
+	ErrCodeSessionNotActive  = "session_not_active"
+	ErrCodeSessionAlreadyRun = "session_already_running"
+	ErrCodeUnauthorized      = "unauthorized"
+	ErrCodeInvalidMessage    = "invalid_message"
+	ErrCodeRateLimitExceeded = "rate_limit_exceeded"
+	ErrCodeAlreadyAnswered   = "already_answered"
+	ErrCodeInternalError     = "internal_error"
+)
+
+// IncomingMessage — универсальный контейнер входящего WS-сообщения.
+type IncomingMessage struct {
+	Type          string `json:"type"`
+	RoomCode      string `json:"room_code,omitempty"`
+	Name          string `json:"name,omitempty"`
+	Token         string `json:"token,omitempty"`
+	ParticipantID string `json:"participant_id,omitempty"` // стабильный UUID участника, выданный backend-core
+	QuestionID    string `json:"question_id,omitempty"`
+	AnswerIndex   int    `json:"answer_index"`
+	AnswerID      string `json:"answer_id,omitempty"` // ID варианта ответа (фронтенд-совместимый)
+}
+
+// OutgoingMessage — базовая обёртка исходящего сообщения.
+type OutgoingMessage struct {
+	Type      string      `json:"type"`
+	Timestamp time.Time   `json:"timestamp"`
+	Payload   interface{} `json:"payload,omitempty"`
+}
+
+// JoinedPayload — ответ сервера на успешный join.
+// Включает текущий состав комнаты, чтобы только что подключившийся клиент
+// сразу знал, кто уже в лобби (без отдельного запроса/события).
+type JoinedPayload struct {
+	RoomCode       string               `json:"room_code"`
+	Role           string               `json:"role"`
+	Name           string               `json:"name"`
+	QuizTitle      string               `json:"quiz_title"`
+	TotalQuestions int                  `json:"total_questions"`
+	Participants   []SessionParticipant `json:"participants"`
+	TotalCount     int                  `json:"totalCount"`
+}
+
+// SessionParticipant — участник сессии (совместим с фронтендом SessionParticipant).
+type SessionParticipant struct {
+	ID             string `json:"id"`
+	Nickname       string `json:"nickname"`
+	AvatarInitials string `json:"avatarInitials"`
+	AvatarColor    string `json:"avatarColor"`
+	Score          int    `json:"score"`
+	AnsweredCount  int    `json:"answeredCount"`
+}
+
+// ParticipantJoinedPayload — уведомление о подключении участника (совместим с фронтендом WsParticipantJoinedPayload).
+type ParticipantJoinedPayload struct {
+	Participant SessionParticipant `json:"participant"`
+	TotalCount  int                `json:"totalCount"`
+}
+
+// ParticipantLeftPayload — уведомление об отключении участника.
+type ParticipantLeftPayload struct {
+	ParticipantID string `json:"participant_id"`
+	Name          string `json:"name"`
+	TotalCount    int    `json:"totalCount"`
+}
+
+// SessionStartedPayload — данные о запуске сессии.
+type SessionStartedPayload struct {
+	QuizTitle      string `json:"quiz_title"`
+	TotalQuestions int    `json:"total_questions"`
+}
+
+// AnswerOptionData — вариант ответа (совместим с фронтендом AnswerOption).
+type AnswerOptionData struct {
+	ID        string `json:"id"`
+	Text      string `json:"text"`
+	IsCorrect bool   `json:"isCorrect"`
+	Color     string `json:"color"`
+}
+
+// QuestionData — данные вопроса (совместим с фронтендом Question).
+type QuestionData struct {
+	ID               string             `json:"id"`
+	QuizID           string             `json:"quizId"`
+	Type             string             `json:"type"`
+	Text             string             `json:"text"`
+	ImageURL         string             `json:"imageUrl,omitempty"`
+	Options          []AnswerOptionData `json:"options"`
+	TimeLimitSeconds int                `json:"timeLimitSeconds"`
+	Order            int                `json:"order"`
+}
+
+// QuestionStartedPayload — payload события question_started (совместим с фронтендом WsQuestionStartedPayload).
+type QuestionStartedPayload struct {
+	Question       QuestionData `json:"question"`
+	QuestionIndex  int          `json:"questionIndex"` // 0-based
+	TotalQuestions int          `json:"totalQuestions"`
+	StartedAt      int64        `json:"startedAt"` // epoch ms
+}
+
+// AnswerReceivedPayload — уведомление преподавателю о поступившем ответе.
+type AnswerReceivedPayload struct {
+	ParticipantName   string `json:"participant_name"`
+	AnswersCount      int    `json:"answers_count"`
+	TotalParticipants int    `json:"total_participants"`
+}
+
+// AnswerResultPayload — результат ответа студента.
+type AnswerResultPayload struct {
+	Correct      bool `json:"correct"`
+	CorrectIndex int  `json:"correct_index"`
+	Score        int  `json:"score"`
+	TotalScore   int  `json:"total_score"`
+}
+
+// AnswerDistribution — статистика ответов по одному варианту.
+type AnswerDistribution struct {
+	OptionID   string `json:"optionId"`
+	OptionText string `json:"optionText"`
+	Count      int    `json:"count"`
+	IsCorrect  bool   `json:"isCorrect"`
+	Color      string `json:"color"`
+}
+
+// ParticipantShort — краткая информация для списка быстрых ответивших.
+type ParticipantShort struct {
+	ID       string `json:"id"`
+	Nickname string `json:"nickname"`
+}
+
+// QuestionReport — отчёт по вопросу (совместим с фронтендом QuestionReport).
+type QuestionReport struct {
+	QuestionID                 string               `json:"questionId"`
+	QuestionText               string               `json:"questionText"`
+	CorrectPercent             int                  `json:"correctPercent"`
+	AvgResponseTimeMs          int                  `json:"avgResponseTimeMs"`
+	MostCommonWrongOptionID    string               `json:"mostCommonWrongOptionId,omitempty"`
+	MostCommonWrongOptionText  string               `json:"mostCommonWrongOptionText,omitempty"`
+	Distribution               []AnswerDistribution `json:"distribution"`
+	FastestCorrectParticipants []ParticipantShort   `json:"fastestCorrectParticipants"`
+}
+
+// QuestionEndedPayload — payload события question_ended (совместим с фронтендом WsQuestionEndedPayload).
+type QuestionEndedPayload struct {
+	QuestionReport QuestionReport       `json:"questionReport"`
+	Leaderboard    []SessionParticipant `json:"leaderboard"`
+	EndedAt        int64                `json:"endedAt"` // epoch ms
+}
+
+// ScoreEntry — строка рейтинга.
+type ScoreEntry struct {
+	Rank  int    `json:"rank"`
+	Name  string `json:"name"`
+	Score int    `json:"score"`
+}
+
+// LeaderboardPayload — текущий рейтинг.
+type LeaderboardPayload struct {
+	Entries []ScoreEntry `json:"entries"`
+}
+
+// ParticipantResult — итоговый результат участника.
+type ParticipantResult struct {
+	Name           string `json:"name"`
+	Score          int    `json:"score"`
+	CorrectAnswers int    `json:"correct_answers"`
+	TotalQuestions int    `json:"total_questions"`
+}
+
+// SessionFinishedPayload — данные завершённой сессии.
+type SessionFinishedPayload struct {
+	QuizTitle string              `json:"quiz_title"`
+	Results   []ParticipantResult `json:"results"`
+	Duration  int                 `json:"duration_sec"`
+}
+
+// ErrorPayload — описание ошибки.
+type ErrorPayload struct {
+	Code    string `json:"code"`
+	Message string `json:"message"`
+}
+
+// NewError создаёт исходящее сообщение об ошибке.
+func NewError(code, msg string) OutgoingMessage {
+	return OutgoingMessage{
+		Type:      TypeError,
+		Timestamp: time.Now(),
+		Payload:   ErrorPayload{Code: code, Message: msg},
+	}
+}
+
+// New создаёт исходящее сообщение с заданным типом и payload.
+func New(msgType string, payload interface{}) OutgoingMessage {
+	return OutgoingMessage{
+		Type:      msgType,
+		Timestamp: time.Now(),
+		Payload:   payload,
+	}
+}
+
+// Pong возвращает pong-сообщение.
+func Pong() OutgoingMessage {
+	return OutgoingMessage{Type: TypePong, Timestamp: time.Now()}
+}

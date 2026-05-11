@@ -1,17 +1,51 @@
-version: '3.8'
+version: "3.9"
 
 services:
   postgres:
-    image: postgres:16-alpine
-    container_name: quiz_core_db
+    image: postgres:15-alpine
+    container_name: smartbattle-postgres-dev
+    restart: unless-stopped
     environment:
-      POSTGRES_USER: quizuser
-      POSTGRES_PASSWORD: quizpassword
-      POSTGRES_DB: quizdb
+      POSTGRES_USER: postgres
+      POSTGRES_PASSWORD: postgres
+      POSTGRES_DB: smartbattle
     ports:
       - "5432:5432"
     volumes:
-      - postgres_data:/var/lib/postgresql/data
+      - smartbattle_postgres_data:/var/lib/postgresql/data
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U postgres -d smartbattle"]
+      interval: 10s
+      timeout: 5s
+      retries: 10
+
+  quiz-core:
+    build:
+      context: .
+      dockerfile: Dockerfile
+    container_name: smartbattle-quiz-core-dev
+    restart: unless-stopped
+    environment:
+      PORT: "8080"
+      DB_DSN: "host=postgres user=postgres password=postgres dbname=smartbattle port=5432 sslmode=disable"
+      JWT_SECRET: "supersecret"
+      X_INTERNAL_SECRET: "internal_secret_key"
+      REALTIME_URL: "http://localhost:8081"
+      FRONTEND_URL: "http://localhost:3000"
+      SMTP_HOST: "localhost"
+      SMTP_PORT: "1025"
+      ADMINS_FILE: "/admins.json"
+    ports:
+      - "8080:8080"
+    depends_on:
+      postgres:
+        condition: service_healthy
+    healthcheck:
+      test: ["CMD-SHELL", "wget -qO- http://localhost:8080/health || exit 1"]
+      interval: 15s
+      timeout: 5s
+      retries: 8
 
 volumes:
-  postgres_data:
+  smartbattle_postgres_data:
+    external: true
